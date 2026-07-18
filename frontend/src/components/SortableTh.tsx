@@ -8,7 +8,7 @@ interface SortableThProps {
   currentSort: { field: SortField; dir: SortDirection };
   onSort: (field: SortField) => void;
   align?: 'left' | 'right' | 'center';
-  iconAlign?: 'left' | 'right';
+
   className?: string;
 }
 
@@ -18,7 +18,6 @@ export function SortableTh({
   currentSort, 
   onSort, 
   align = 'left', 
-  iconAlign = 'left', 
   className = '' 
 }: SortableThProps) {
   const isSorted = currentSort.field === field;

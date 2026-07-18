@@ -36,23 +36,23 @@ export function DataTable({ activeTab, data, loading, secondsElapsed = 0, curren
             <SortableTh field="cmcRank" currentSort={currentSort} onSort={onSort} align="center" className="py-2 px-2 text-center">Rank</SortableTh>
             
             {activeTab === 'movers' && (
-              <SortableTh field="price" currentSort={currentSort} onSort={onSort} align="right" iconAlign="right" className="py-2 px-2">Price</SortableTh>
+              <SortableTh field="price" currentSort={currentSort} onSort={onSort} align="right" className="py-2 px-2">Price</SortableTh>
             )}
             
-            <SortableTh field="percentMove24h" currentSort={currentSort} onSort={onSort} align="right" iconAlign="right" className="py-2 px-2">24h %</SortableTh>
+            <SortableTh field="percentMove24h" currentSort={currentSort} onSort={onSort} align="right" className="py-2 px-2">24h %</SortableTh>
             
             {activeTab === 'rsi' ? (
               <>
                 <SortableTh field="rsi15m" currentSort={currentSort} onSort={onSort} align="center" className="py-2 px-2 text-center">15m RSI</SortableTh>
                 <SortableTh field="rsi4h" currentSort={currentSort} onSort={onSort} align="center" className="py-2 px-2 text-center">4h RSI</SortableTh>
                 <SortableTh field="rsi24h" currentSort={currentSort} onSort={onSort} align="center" className="py-2 px-2 text-center">24h RSI</SortableTh>
-                <SortableTh field="mcap" currentSort={currentSort} onSort={onSort} align="right" iconAlign="right" className="py-2 px-2">Mcap</SortableTh>
-                <SortableTh field="volume24h" currentSort={currentSort} onSort={onSort} align="right" iconAlign="right" className="py-2 px-2">Vol(24h)</SortableTh>
-                <SortableTh field="price" currentSort={currentSort} onSort={onSort} align="right" iconAlign="right" className="py-2 px-2">Price</SortableTh>
+                <SortableTh field="mcap" currentSort={currentSort} onSort={onSort} align="right" className="py-2 px-2">Mcap</SortableTh>
+                <SortableTh field="volume24h" currentSort={currentSort} onSort={onSort} align="right" className="py-2 px-2">Vol(24h)</SortableTh>
+                <SortableTh field="price" currentSort={currentSort} onSort={onSort} align="right" className="py-2 px-2">Price</SortableTh>
               </>
             ) : (
               <>
-                <SortableTh field="volume24h" currentSort={currentSort} onSort={onSort} align="right" iconAlign="right" className="py-2 px-2">Vol(24h)</SortableTh>
+                <SortableTh field="volume24h" currentSort={currentSort} onSort={onSort} align="right" className="py-2 px-2">Vol(24h)</SortableTh>
               </>
             )}
           </tr>

@@ -186,7 +186,7 @@ export default function App() {
         </div>
       </main>
 
-      <BottomNavBar activeTab={activeTab} onTabChange={setActiveTab} />
+      <BottomNavBar activeTab={activeTab} onTabChange={(tab) => setActiveTab(tab)} />
 
       <style>{`
         .pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 0.5rem); }

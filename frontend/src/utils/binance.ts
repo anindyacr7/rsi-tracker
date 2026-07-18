@@ -5,7 +5,6 @@ export interface Ticker24h {
   quoteVolume: string;
 }
 
-const BINANCE_BASE = 'https://api.binance.com';
 
 export async function fetchValidUSDTPairs(): Promise<Ticker24h[]> {
   const bases = [
