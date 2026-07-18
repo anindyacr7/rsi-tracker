@@ -48,7 +48,7 @@ export async function fetchValidUSDTPairs(): Promise<Ticker24h[]> {
 export async function fetchKlines(
   symbol: string,
   interval: string,
-  limit: number = 20
+  limit: number = 150
 ): Promise<number[]> {
   const bases = [
     'https://api.binance.com',
