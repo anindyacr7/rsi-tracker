@@ -28,16 +28,17 @@ export default function App() {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || '/api/scan';
 
-      // 1. Fetch CMC Data from Worker
-      const mcapRes = await fetch(apiUrl);
+      // 1 & 2. Fetch CMC Data AND Binance Tickers concurrently to save ~0.5s - 1s
+      const [mcapRes, allTickers] = await Promise.all([
+        fetch(apiUrl),
+        fetchValidUSDTPairs()
+      ]);
+      
       if (!mcapRes.ok) throw new Error(`Worker HTTP ${mcapRes.status}`);
       const mcapJson = await mcapRes.json();
       const mcapData: { base: string; mcap: number; rank: number }[] = mcapJson.data || [];
       const mcapMap = new Map(mcapData.map(d => [d.base, d]));
       setMcapSource(mcapJson.meta?.mcapSource || null);
-
-      // 2. Fetch Tickers from Binance (Frontend directly)
-      const allTickers = await fetchValidUSDTPairs();
 
       // 3. Filter tickers by CMC Top 200
       const tickers = allTickers.filter(t => mcapMap.has(t.symbol.replace('USDT', '')));
@@ -54,7 +55,7 @@ export default function App() {
       const klineMap = new Map<string, Map<string, number[]>>();
 
       // Batch requests locally in the browser to avoid blocking
-      const CHUNK_SIZE = 15; // 45 subrequests per chunk
+      const CHUNK_SIZE = 50; // 150 subrequests per chunk
       for (let i = 0; i < rsiSymbols.length; i += CHUNK_SIZE) {
         const chunk = rsiSymbols.slice(i, i + CHUNK_SIZE);
         const promises = chunk.flatMap(symbol =>
