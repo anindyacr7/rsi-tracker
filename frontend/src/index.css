@@ -1,0 +1,136 @@
+@import "tailwindcss";
+
+@theme {
+  --color-surface-bright: #373942;
+  --color-tertiary-container: #ff5352;
+  --color-tertiary: #ffb3ae;
+  --color-tertiary-fixed-dim: #ffb3ae;
+  --color-surface-variant: #32343d;
+  --color-on-tertiary-container: #5c0008;
+  --color-background: #11131b;
+  --color-surface-container-low: #191b24;
+  --color-inverse-on-surface: #2e3039;
+  --color-surface-container: #1d1f28;
+  --color-surface-container-high: #272a32;
+  --color-primary: #b4c5ff;
+  --color-inverse-surface: #e1e2ed;
+  --color-on-primary: #002a78;
+  --color-secondary: #42e091;
+  --color-on-surface: #e1e2ed;
+  --color-outline: #8d90a1;
+  --color-surface-dim: #11131b;
+  --color-secondary-fixed-dim: #42e091;
+  --color-on-surface-variant: #c3c6d8;
+  --color-on-background: #e1e2ed;
+  --color-outline-variant: #434655;
+  --color-surface-container-highest: #32343d;
+  --color-surface: #11131b;
+  --color-secondary-fixed: #65feab;
+  --color-primary-fixed-dim: #b4c5ff;
+
+  --font-body-base: "Inter", sans-serif;
+  --font-label-caps: "Inter", sans-serif;
+  --font-headline-md: "Inter", sans-serif;
+  --font-headline-md-mobile: "Inter", sans-serif;
+  --font-data-tabular: "JetBrains Mono", monospace;
+
+  --spacing-margin-mobile: 1rem;
+  --spacing-stack-sm: 0.5rem;
+  --spacing-container-max: 1280px;
+  --spacing-gutter: 1rem;
+  --spacing-stack-lg: 2rem;
+  --spacing-stack-xs: 0.25rem;
+  --spacing-margin-desktop: 2rem;
+  --spacing-stack-md: 1rem;
+
+  --text-body-base: 16px;
+  --text-body-base--line-height: 24px;
+  --text-label-caps: 12px;
+  --text-label-caps--line-height: 16px;
+  --text-headline-md: 24px;
+  --text-headline-md--line-height: 32px;
+  --text-headline-md-mobile: 20px;
+  --text-headline-md-mobile--line-height: 28px;
+  --text-display-lg: 48px;
+  --text-display-lg--line-height: 56px;
+  --text-data-tabular: 14px;
+  --text-data-tabular--line-height: 20px;
+
+  --radius-DEFAULT: 0.125rem;
+  --radius-lg: 0.25rem;
+  --radius-xl: 0.5rem;
+  --radius-full: 0.75rem;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-on-background);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Glass surface */
+.glass-surface {
+  background: rgba(30, 30, 34, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* Custom classes from original mockup */
+.rsi-chip-extreme-low {
+  background-color: rgba(66, 224, 145, 0.2);
+  color: #42e091;
+  border: 1px solid rgba(66, 224, 145, 0.3);
+}
+
+.rsi-chip-low {
+  background-color: rgba(66, 224, 145, 0.1);
+  color: #65feab;
+  border: 1px solid rgba(66, 224, 145, 0.2);
+}
+
+.rsi-chip-neutral {
+  background-color: rgba(141, 144, 161, 0.1);
+  color: #c3c6d8;
+  border: 1px solid rgba(141, 144, 161, 0.2);
+}
+
+.rsi-chip-high {
+  background-color: rgba(255, 83, 82, 0.1);
+  color: #ffb3ae;
+  border: 1px solid rgba(255, 83, 82, 0.2);
+}
+
+.rsi-chip-extreme-high {
+  background-color: rgba(255, 83, 82, 0.2);
+  color: #ff5352;
+  border: 1px solid rgba(255, 83, 82, 0.3);
+}
+
+/* Hide scrollbar */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Custom Toggle Switch */
+.toggle-checkbox:checked {
+  right: 0;
+  border-color: var(--color-primary-fixed-dim);
+}
+
+.toggle-checkbox:checked+.toggle-label {
+  background-color: var(--color-primary-container);
+}

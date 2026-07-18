@@ -1,0 +1,16 @@
+{
+  "name": "crypto-rsi-tracker",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "worker"
+  ],
+  "scripts": {
+    "dev:fe": "npm run dev --workspace=frontend",
+    "dev:wk": "npm run dev --workspace=worker",
+    "build:fe": "npm run build --workspace=frontend",
+    "deploy:fe": "npm run deploy --workspace=frontend",
+    "deploy:wk": "npm run deploy --workspace=worker",
+    "dev": "echo 'Run dev:fe and dev:wk in separate terminals'"
+  }
+}
