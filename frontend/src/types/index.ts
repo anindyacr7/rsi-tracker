@@ -12,3 +12,14 @@ export interface ScanResult {
 
 export type SortField = keyof ScanResult | null;
 export type SortDirection = 'asc' | 'desc';
+
+export interface Alert {
+  symbol: string;
+  first_hit_time: number;
+  first_rsi_value: number;
+  max_rsi_value: number;
+  percent_move_24h: number;
+  mcap_rank: number | null;
+  last_notified_at: number;
+  created_at: number;
+}

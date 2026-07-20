@@ -5,3 +5,11 @@ compatibility_flags = ["nodejs_compat"]
 
 [observability]
 enabled = true
+
+[triggers]
+crons = ["* * * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "rsi_alerts_db"
+database_id = "9242f4b8-54fc-4785-beaa-963e0e22746e"

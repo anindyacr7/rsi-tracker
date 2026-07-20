@@ -32,12 +32,13 @@ const CMC_KEYS = [
   'e138e806ea0d479d93efb9dae20b2a86'
 ];
 
-export async function fetchMarketCaps(): Promise<MarketCapResult> {
+export async function fetchMarketCaps(keyIndex?: 0 | 1 | -1): Promise<MarketCapResult> {
 
   let mcapMap = new Map<string, { mcap: number, rank: number }>();
 
-  // 1. Try CoinMarketCap API keys
-  for (const key of CMC_KEYS) {
+  // 1. Try CoinMarketCap API keys (skip if keyIndex is -1)
+  const keysToTry = keyIndex === -1 ? [] : (keyIndex !== undefined ? [CMC_KEYS[keyIndex]] : CMC_KEYS);
+  for (const key of keysToTry) {
     try {
       const url = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest?limit=200';
       const controller = new AbortController();
@@ -113,6 +114,4 @@ export async function fetchMarketCaps(): Promise<MarketCapResult> {
     console.warn('Failed to fetch from Coinlore:', err);
     // Even on error, return the empty map to avoid throwing unhandled exceptions
     return { mcapMap, source: 'coinlore' };
-  }
-}
-}
+  }}

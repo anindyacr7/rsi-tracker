@@ -5,26 +5,14 @@ export interface Ticker24h {
   quoteVolume: string;
 }
 
-
 export async function fetchValidUSDTPairs(): Promise<Ticker24h[]> {
   const bases = [
-    'https://api.binance.com',
-    'https://api1.binance.com',
-    'https://api2.binance.com',
-    'https://api3.binance.com',
-    'https://api4.binance.com'
+    'https://data-api.binance.vision'
   ];
-  
-  let res;
-  try {
-    const base = bases[Math.floor(Math.random() * bases.length)];
-    res = await fetch(`${base}/api/v3/ticker/24hr`);
-    if (!res.ok) throw new Error(`Status ${res.status}`);
-  } catch (err) {
-    console.warn(`Primary Binance API failed, falling back to data-api...`, err);
-    res = await fetch('https://data-api.binance.vision/api/v3/ticker/24hr');
-  }
-  
+  const base = bases[Math.floor(Math.random() * bases.length)];
+
+  const res = await fetch(`${base}/api/v3/ticker/24hr`);
+
   if (!res.ok) {
     throw new Error(`Binance ticker API error: ${res.status}`);
   }
@@ -58,25 +46,15 @@ export async function fetchKlines(
   limit: number = 150
 ): Promise<number[]> {
   const bases = [
-    'https://api.binance.com',
-    'https://api1.binance.com',
-    'https://api2.binance.com',
-    'https://api3.binance.com',
-    'https://api4.binance.com'
+    'https://data-api.binance.vision'
   ];
-  
-  let res;
-  try {
-    const base = bases[Math.floor(Math.random() * bases.length)];
-    res = await fetch(`${base}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
-    if (!res.ok) throw new Error(`Status ${res.status}`);
-  } catch (err) {
-    // console.warn(`Kline fetch failed for ${symbol}, falling back...`);
-    res = await fetch(`https://data-api.binance.vision/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
-  }
+  const base = bases[Math.floor(Math.random() * bases.length)];
+  const url = `${base}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+
+  const res = await fetch(url);
 
   if (!res.ok) {
-    console.error(`Kline fetch completely failed for ${symbol} ${interval}: ${res.status}`);
+    console.error(`Kline fetch failed for ${symbol} ${interval}: ${res.status}`);
     return [];
   }
 

@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import type { ScanResult, SortField, SortDirection } from './types';
+import type { ScanResult, SortField, SortDirection, Alert } from './types';
 import { TopAppBar } from './components/TopAppBar';
 import { BottomNavBar } from './components/BottomNavBar';
 import { DataTable } from './components/DataTable';
+import { AlertsTable } from './components/AlertsTable';
 
 import { fetchValidUSDTPairs, fetchKlines } from './utils/binance';
 import { calculateRSI } from './utils/rsi';
@@ -14,11 +15,45 @@ export default function App() {
   const [secondsElapsed, setSecondsElapsed] = useState(0);
   const [mcapSource, setMcapSource] = useState<'cmc' | 'coinlore' | null>(null);
 
-  const [activeTab, setActiveTab] = useState<'rsi' | 'movers'>('rsi');
+  // Load initial state from URL or localStorage
+  const getInitialState = () => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = (params.get('tab') || localStorage.getItem('activeTab') || 'rsi') as 'rsi' | 'movers' | 'alerts';
+    
+    let initialRsiSort = { field: null, dir: 'desc' as SortDirection };
+    try { initialRsiSort = JSON.parse(localStorage.getItem('rsiSort') || '') || initialRsiSort; } catch {}
+    
+    let initialMoversSort = { field: 'percentMove24h' as SortField, dir: 'desc' as SortDirection };
+    try { initialMoversSort = JSON.parse(localStorage.getItem('moversSort') || '') || initialMoversSort; } catch {}
+
+    return { tab, initialRsiSort, initialMoversSort };
+  };
+
+  const initialState = useMemo(getInitialState, []);
+
+  const [activeTab, setActiveTab] = useState<'rsi' | 'movers' | 'alerts'>(initialState.tab);
+  const [alertsData, setAlertsData] = useState<Alert[]>([]);
+  const [alertsLoading, setAlertsLoading] = useState(false);
 
   // Sort state
-  const [rsiSort, setRsiSort] = useState<{ field: SortField, dir: SortDirection }>({ field: null, dir: 'desc' });
-  const [moversSort, setMoversSort] = useState<{ field: SortField, dir: SortDirection }>({ field: 'percentMove24h', dir: 'desc' });
+  const [rsiSort, setRsiSort] = useState<{ field: SortField, dir: SortDirection }>(initialState.initialRsiSort);
+  const [moversSort, setMoversSort] = useState<{ field: SortField, dir: SortDirection }>(initialState.initialMoversSort);
+
+  // Sync to localStorage and URL
+  useEffect(() => {
+    localStorage.setItem('activeTab', activeTab);
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', activeTab);
+    window.history.replaceState({}, '', url);
+  }, [activeTab]);
+
+  useEffect(() => {
+    localStorage.setItem('rsiSort', JSON.stringify(rsiSort));
+  }, [rsiSort]);
+
+  useEffect(() => {
+    localStorage.setItem('moversSort', JSON.stringify(moversSort));
+  }, [moversSort]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -105,8 +140,31 @@ export default function App() {
     fetchData();
   }, [fetchData]);
 
+  const fetchAlerts = useCallback(async () => {
+    setAlertsLoading(true);
+    try {
+      const scanApiUrl = import.meta.env.VITE_API_URL || '/api/scan';
+      const alertsApiUrl = scanApiUrl.replace('/scan', '/alerts');
+      const res = await fetch(alertsApiUrl);
+      if (res.ok) {
+        const json = await res.json();
+        setAlertsData(json.data || []);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setAlertsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'alerts') {
+      fetchAlerts();
+    }
+  }, [activeTab, fetchAlerts]);
+
   // Sorting and Filtering logic
-  const processData = (tabData: ScanResult[], tab: 'rsi' | 'movers') => {
+  const processData = (tabData: ScanResult[], tab: 'rsi' | 'movers' | 'alerts') => {
     let processed = [...tabData];
 
     // Hard cap RSI scanner to top 150 coins by rank
@@ -175,14 +233,18 @@ export default function App() {
             </div>
           )}
 
-          <DataTable
-            activeTab={activeTab}
-            data={displayedData}
-            loading={loading}
-            secondsElapsed={secondsElapsed}
-            currentSort={currentSort}
-            onSort={handleSort}
-          />
+          {activeTab === 'alerts' ? (
+            <AlertsTable data={alertsData} loading={alertsLoading} />
+          ) : (
+            <DataTable
+              activeTab={activeTab as 'rsi' | 'movers'}
+              data={displayedData}
+              loading={loading}
+              secondsElapsed={secondsElapsed}
+              currentSort={currentSort}
+              onSort={handleSort}
+            />
+          )}
 
         </div>
       </main>
