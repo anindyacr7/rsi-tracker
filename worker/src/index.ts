@@ -61,7 +61,7 @@ export default {
 
 async function handleCron(env: Env) {
   try {
-    const { mcapMap } = await fetchMarketCaps(-1); // Use Coinlore to save CMC credits
+    const { mcapMap } = await fetchMarketCaps(1, env.DB); // Use CMC key 1 and pass D1 DB for caching
     const allTickers = await fetchValidUSDTPairs();
 
     // Filter tickers by CMC Top 150
@@ -208,16 +208,7 @@ async function sendTelegramMessage(env: Env, text: string) {
 
 async function handleScan(): Promise<Response> {
   try {
-    const now = new Date();
-    // Convert to IST (UTC + 5:30)
-    const istTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
-    const hours = istTime.getUTCHours();
-    
-    // Use key 0 from 5 AM IST (5) to 3 PM IST (14:59)
-    // Use key 1 for the rest of the time
-    const keyIndex = (hours >= 5 && hours < 15) ? 0 : 1;
-
-    const { mcapMap, source } = await fetchMarketCaps(keyIndex);
+    const { mcapMap, source } = await fetchMarketCaps(0);
 
     const results = Array.from(mcapMap.entries()).map(([base, data]) => ({
       base,

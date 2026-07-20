@@ -32,9 +32,27 @@ const CMC_KEYS = [
   'e138e806ea0d479d93efb9dae20b2a86'
 ];
 
-export async function fetchMarketCaps(keyIndex?: 0 | 1 | -1): Promise<MarketCapResult> {
+export async function fetchMarketCaps(keyIndex?: 0 | 1 | -1, db?: any): Promise<MarketCapResult> {
 
   let mcapMap = new Map<string, { mcap: number, rank: number }>();
+
+  // Check D1 cache first if db is provided
+  if (db) {
+    try {
+      const cacheRow = await db.prepare('SELECT data, updated_at FROM mcap_cache WHERE id = 1').first();
+      const now = Date.now();
+      // If cache exists and is less than 15 minutes old
+      if (cacheRow && (now - cacheRow.updated_at) < 15 * 60 * 1000) {
+        const cachedArray = JSON.parse(cacheRow.data);
+        for (const coin of cachedArray) {
+          mcapMap.set(coin.symbol, { mcap: coin.mcap, rank: coin.rank });
+        }
+        return { mcapMap, source: 'cmc' };
+      }
+    } catch (e) {
+      console.error('Failed to read from D1 cache:', e);
+    }
+  }
 
   // 1. Try CoinMarketCap API keys (skip if keyIndex is -1)
   const keysToTry = keyIndex === -1 ? [] : (keyIndex !== undefined ? [CMC_KEYS[keyIndex]] : CMC_KEYS);
@@ -67,6 +85,22 @@ export async function fetchMarketCaps(keyIndex?: 0 | 1 | -1): Promise<MarketCapR
           // Alias handling for mismatched tickers
           if (mcapMap.has('TON')) mcapMap.set('GRAM', mcapMap.get('TON')!);
           if (mcapMap.has('MIOTA')) mcapMap.set('IOTA', mcapMap.get('MIOTA')!);
+
+          // Save to D1 cache
+          if (db) {
+            try {
+              const arrayToCache = Array.from(mcapMap.entries()).map(([sym, data]) => ({
+                symbol: sym,
+                mcap: data.mcap,
+                rank: data.rank
+              }));
+              await db.prepare('INSERT OR REPLACE INTO mcap_cache (id, data, updated_at) VALUES (1, ?, ?)')
+                .bind(JSON.stringify(arrayToCache), Date.now())
+                .run();
+            } catch (e) {
+              console.error('Failed to write to D1 cache:', e);
+            }
+          }
 
           return { mcapMap, source: 'cmc' };
         }
