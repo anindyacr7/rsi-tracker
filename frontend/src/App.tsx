@@ -82,11 +82,11 @@ export default function App() {
       // 3. Filter tickers by CMC Top 200
       const tickers = allTickers.filter(t => mcapMap.has(t.symbol.replace('USDT', '')));
 
-      // 4. Fetch Klines for Top 250 only
+      // 4. Fetch Klines for Top 150 only
       const rsiSymbols = tickers
         .filter(t => {
           const rank = mcapMap.get(t.symbol.replace('USDT', ''))?.rank;
-          return rank && rank <= 250;
+          return rank && rank <= 150;
         })
         .map(t => t.symbol);
 
@@ -171,9 +171,9 @@ export default function App() {
   const processData = (tabData: ScanResult[], tab: 'rsi' | 'movers' | 'alerts') => {
     let processed = [...tabData];
 
-    // Hard cap RSI scanner to top 250 coins by rank
+    // Hard cap RSI scanner to top 150 coins by rank
     if (tab === 'rsi') {
-      processed = processed.filter(item => item.cmcRank && item.cmcRank <= 250);
+      processed = processed.filter(item => item.cmcRank && item.cmcRank <= 150);
     }
 
     const sortConfig = tab === 'rsi' ? rsiSort : moversSort;
