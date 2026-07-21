@@ -1,7 +1,8 @@
 import clsx from 'clsx';
 import { useEffect, useRef, useState } from 'react';
-import { createChart, IChartApi, ColorType } from 'lightweight-charts';
-import { fetchKlinesOHLC, KlineOHLC, Ticker24h } from '../utils/binance';
+import { createChart, ColorType, CandlestickSeries } from 'lightweight-charts';
+import type { IChartApi } from 'lightweight-charts';
+import { fetchKlinesOHLC, type KlineOHLC, type Ticker24h } from '../utils/binance';
 
 interface TokenDetailsSheetProps {
   token: Ticker24h | null;
@@ -27,7 +28,7 @@ export function TokenDetailsSheet({ token, onClose, tokenRsi }: TokenDetailsShee
 
   useEffect(() => {
     if (!token) return;
-    
+
     let isMounted = true;
     const loadData = async () => {
       setLoading(true);
@@ -37,9 +38,9 @@ export function TokenDetailsSheet({ token, onClose, tokenRsi }: TokenDetailsShee
         setLoading(false);
       }
     };
-    
+
     loadData();
-    
+
     return () => { isMounted = false; };
   }, [token, interval]);
 
@@ -66,7 +67,7 @@ export function TokenDetailsSheet({ token, onClose, tokenRsi }: TokenDetailsShee
       },
     });
 
-    const candlestickSeries = chart.addCandlestickSeries({
+    const candlestickSeries = chart.addSeries(CandlestickSeries, {
       upColor: '#42e091',
       downColor: '#ff5352',
       borderVisible: false,
@@ -111,7 +112,7 @@ export function TokenDetailsSheet({ token, onClose, tokenRsi }: TokenDetailsShee
   const change = parseFloat(token.priceChangePercent);
   const isPositive = change >= 0;
   const baseAsset = token.symbol.replace('USDT', '');
-  
+
   // Estimate some stats based on available data
   const vol = parseFloat(token.quoteVolume);
   const volFormatted = vol > 1e9 ? `$${(vol / 1e9).toFixed(2)}B` : `$${(vol / 1e6).toFixed(2)}M`;
@@ -119,16 +120,16 @@ export function TokenDetailsSheet({ token, onClose, tokenRsi }: TokenDetailsShee
   return (
     <div className="fixed inset-0 z-[100] bottom-sheet-overlay transition-opacity duration-300">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      
+
       <div className="bottom-sheet fixed bottom-0 left-0 right-0 max-w-[600px] mx-auto bg-surface-dim rounded-t-[2rem] h-[92vh] flex flex-col shadow-2xl border-t border-outline-variant/20 animate-in slide-in-from-bottom-full duration-300">
-        
+
         {/* Handle Indicator */}
         <div className="w-full flex justify-center py-4 cursor-pointer" onClick={onClose}>
           <div className="w-12 h-1.5 bg-outline-variant rounded-full opacity-40"></div>
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 pb-24 md:px-8 hide-scrollbar">
-          
+
           {/* Token Header */}
           <div className="flex flex-col items-center text-center mt-4 mb-8">
             <div className="flex items-center gap-2 mb-2">
@@ -167,7 +168,7 @@ export function TokenDetailsSheet({ token, onClose, tokenRsi }: TokenDetailsShee
                 ))}
               </div>
             </div>
-            
+
             <div className="h-64 w-full relative">
               {loading && chartData.length === 0 && (
                 <div className="absolute inset-0 flex items-center justify-center bg-transparent z-10">
@@ -191,10 +192,10 @@ export function TokenDetailsSheet({ token, onClose, tokenRsi }: TokenDetailsShee
                   {tokenRsi !== undefined ? tokenRsi.toFixed(1) : '--'}
                 </span>
                 {tokenRsi !== undefined && (
-                  <span className={clsx("px-2 py-0.5 rounded-full text-[10px] font-label-caps font-bold", 
-                    tokenRsi >= 75 ? "bg-error/20 text-error" : 
-                    tokenRsi <= 30 ? "bg-secondary/20 text-secondary" : 
-                    "bg-primary/20 text-primary")}>
+                  <span className={clsx("px-2 py-0.5 rounded-full text-[10px] font-label-caps font-bold",
+                    tokenRsi >= 75 ? "bg-error/20 text-error" :
+                      tokenRsi <= 30 ? "bg-secondary/20 text-secondary" :
+                        "bg-primary/20 text-primary")}>
                     {tokenRsi >= 75 ? 'OVERBOUGHT' : tokenRsi <= 30 ? 'OVERSOLD' : 'NEUTRAL'}
                   </span>
                 )}
@@ -210,7 +211,7 @@ export function TokenDetailsSheet({ token, onClose, tokenRsi }: TokenDetailsShee
               <span className="font-headline-md text-[24px] text-on-surface font-data-tabular font-bold">{volFormatted}</span>
             </div>
           </div>
-          
+
         </div>
       </div>
     </div>
