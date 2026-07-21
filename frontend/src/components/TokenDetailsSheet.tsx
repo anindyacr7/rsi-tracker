@@ -9,11 +9,10 @@ import { getRsiClass } from '../utils/formatters';
 interface TokenDetailsSheetProps {
   token: ScanResult | null;
   onClose: () => void;
-  tokenRsi?: number;
   volumeRank?: number | null;
 }
 
-export function TokenDetailsSheet({ token, onClose, tokenRsi, volumeRank }: TokenDetailsSheetProps) {
+export function TokenDetailsSheet({ token, onClose, volumeRank }: TokenDetailsSheetProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const [interval, setInterval] = useState<'5m' | '15m' | '1h' | '4h' | '1d'>(() => {
