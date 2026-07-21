@@ -5,9 +5,10 @@ import { getRsiClass } from '../utils/formatters';
 interface AlertsTableProps {
   data: Alert[];
   loading: boolean;
+  onRowClick?: (symbol: string) => void;
 }
 
-export function AlertsTable({ data, loading }: AlertsTableProps) {
+export function AlertsTable({ data, loading, onRowClick }: AlertsTableProps) {
   if (loading) {
     return (
       <div className="flex justify-center items-center py-10">
@@ -42,7 +43,11 @@ export function AlertsTable({ data, loading }: AlertsTableProps) {
             const changeSign = item.percent_move_24h >= 0 ? '+' : '';
             
             return (
-              <tr key={item.symbol} className="border-b border-outline-variant/30 hover:bg-surface-container-highest/30 transition-colors">
+              <tr 
+                key={item.symbol} 
+                className="border-b border-outline-variant/30 hover:bg-surface-container-highest/30 transition-colors cursor-pointer"
+                onClick={() => onRowClick?.(item.symbol)}
+              >
                 <td className="py-2 px-1 font-semibold text-on-surface">
                   {item.symbol.replace('USDT', '')}
                 </td>

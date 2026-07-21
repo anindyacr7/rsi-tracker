@@ -5,6 +5,7 @@ import { BottomNavBar } from './components/BottomNavBar';
 import { DataTable } from './components/DataTable';
 import { AlertsTable } from './components/AlertsTable';
 import { SettingsTab } from './components/SettingsTab';
+import { TokenDetailsSheet } from './components/TokenDetailsSheet';
 
 import { fetchValidUSDTPairs, fetchKlines } from './utils/binance';
 import { calculateRSI } from './utils/rsi';
@@ -35,6 +36,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'rsi' | 'movers' | 'alerts' | 'settings'>(initialState.tab);
   const [alertsData, setAlertsData] = useState<Alert[]>([]);
   const [alertsLoading, setAlertsLoading] = useState(false);
+  const [selectedToken, setSelectedToken] = useState<ScanResult | null>(null);
 
   // Sort state
   const [rsiSort, setRsiSort] = useState<{ field: SortField, dir: SortDirection }>(initialState.initialRsiSort);
@@ -248,7 +250,10 @@ export default function App() {
           )}
 
           {activeTab === 'alerts' ? (
-            <AlertsTable data={alertsData} loading={alertsLoading} />
+            <AlertsTable data={alertsData} loading={alertsLoading} onRowClick={(symbol) => {
+              const result = data.find(d => d.symbol === symbol) || { symbol, lastPrice: '0', priceChangePercent: '0', quoteVolume: '0', rsi14: 0, percentMove24h: 0 } as ScanResult;
+              setSelectedToken(result);
+            }} />
           ) : activeTab === 'settings' ? (
             <SettingsTab />
           ) : (
@@ -259,6 +264,7 @@ export default function App() {
               secondsElapsed={secondsElapsed}
               currentSort={currentSort}
               onSort={handleSort}
+              onRowClick={(token) => setSelectedToken(token)}
             />
           )}
 
@@ -266,6 +272,14 @@ export default function App() {
       </main>
 
       <BottomNavBar activeTab={activeTab as any} onTabChange={(tab) => setActiveTab(tab as any)} />
+
+      {selectedToken && (
+        <TokenDetailsSheet
+          token={selectedToken}
+          tokenRsi={selectedToken.rsi14}
+          onClose={() => setSelectedToken(null)}
+        />
+      )}
 
       <style>{`
         .pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 0.5rem); }

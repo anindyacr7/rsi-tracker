@@ -93,3 +93,69 @@ export async function fetchKlines(
   const data: any[][] = await res.json() as any[][];
   return data.map((k) => parseFloat(k[4]));
 }
+
+export interface KlineOHLC {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  value?: number; // for volume
+}
+
+export async function fetchKlinesOHLC(
+  symbol: string,
+  interval: string,
+  limit: number = 100
+): Promise<{ candles: KlineOHLC[], volume: KlineOHLC[] }> {
+  const bases = [
+    'https://api.binance.com',
+    'https://api1.binance.com',
+    'https://api2.binance.com',
+    'https://api3.binance.com',
+    'https://api4.binance.com'
+  ];
+  
+  let res;
+  try {
+    const provider = localStorage.getItem('apiProvider') || 'binanceApi';
+    if (provider === 'binanceData') {
+      res = await fetch(`https://data-api.binance.vision/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
+    } else {
+      const base = bases[Math.floor(Math.random() * bases.length)];
+      res = await fetch(`${base}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
+    }
+    if (!res.ok) throw new Error(`Status ${res.status}`);
+  } catch (err) {
+    res = await fetch(`https://data-api.binance.vision/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
+  }
+
+  if (!res.ok) {
+    console.error(`OHLC fetch failed for ${symbol} ${interval}: ${res.status}`);
+    return { candles: [], volume: [] };
+  }
+
+  const data: any[][] = await res.json() as any[][];
+  
+  const candles: KlineOHLC[] = [];
+  const volume: KlineOHLC[] = [];
+  
+  data.forEach(k => {
+    // Binance time is ms. lightweight-charts expects Unix timestamp in seconds (if not daily)
+    const time = Math.floor(k[0] / 1000); 
+    candles.push({
+      time,
+      open: parseFloat(k[1]),
+      high: parseFloat(k[2]),
+      low: parseFloat(k[3]),
+      close: parseFloat(k[4]),
+    });
+    volume.push({
+      time,
+      value: parseFloat(k[5]), // volume
+      open: 0, high: 0, low: 0, close: parseFloat(k[4]) // satisfy type
+    });
+  });
+  
+  return { candles, volume };
+}

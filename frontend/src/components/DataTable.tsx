@@ -11,11 +11,12 @@ interface DataTableProps {
   secondsElapsed?: number;
   currentSort: { field: SortField; dir: SortDirection };
   onSort: (field: SortField) => void;
+  onRowClick?: (token: ScanResult) => void;
 }
 
 const SKELETON_ROWS = 15;
 
-export function DataTable({ activeTab, data, loading, secondsElapsed = 0, currentSort, onSort }: DataTableProps) {
+export function DataTable({ activeTab, data, loading, secondsElapsed = 0, currentSort, onSort, onRowClick }: DataTableProps) {
   return (
     <div className="flex-1 overflow-x-auto hide-scrollbar w-full relative">
       {loading && activeTab === 'rsi' && (
@@ -69,7 +70,11 @@ export function DataTable({ activeTab, data, loading, secondsElapsed = 0, curren
               const changeSign = item.percentMove24h >= 0 ? '+' : '';
               
               return (
-                <tr key={item.symbol} className="border-b border-outline-variant/30 hover:bg-surface-container-highest/30 transition-colors cursor-pointer group">
+                <tr 
+                  key={item.symbol} 
+                  className="border-b border-outline-variant/30 hover:bg-surface-container-highest/30 transition-colors cursor-pointer"
+                  onClick={() => onRowClick?.(item)}
+                >
                   <td className="py-2 px-2 text-center text-on-surface-variant group-hover:text-on-surface transition-colors">
                     {idx + 1}
                   </td>
