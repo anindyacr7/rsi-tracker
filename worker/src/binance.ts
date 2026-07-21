@@ -5,11 +5,17 @@ export interface Ticker24h {
   quoteVolume: string;
 }
 
+const fetchOptions = {
+  headers: {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+  }
+};
+
 export async function fetchValidUSDTPairs(): Promise<Ticker24h[]> {
   let res;
 
   try {
-    res = await fetch('https://data-api.binance.vision/api/v3/ticker/24hr');
+    res = await fetch('https://data-api.binance.vision/api/v3/ticker/24hr', fetchOptions);
   } catch (e) {}
 
   if (!res || !res.ok) {
@@ -23,7 +29,7 @@ export async function fetchValidUSDTPairs(): Promise<Ticker24h[]> {
     
     for (const base of bases) {
       try {
-        res = await fetch(`${base}/api/v3/ticker/24hr`);
+        res = await fetch(`${base}/api/v3/ticker/24hr`, fetchOptions);
         if (res.ok) break;
       } catch (e) {
         continue;
@@ -32,7 +38,7 @@ export async function fetchValidUSDTPairs(): Promise<Ticker24h[]> {
   }
 
   if (!res || !res.ok) {
-    throw new Error(`Binance ticker API error`);
+    throw new Error(`Binance ticker API error: ${res ? res.status : 'Network Error'}`);
   }
 
   const tickers: Ticker24h[] = await res.json() as Ticker24h[];
@@ -64,11 +70,15 @@ export async function fetchKlines(
   limit: number = 150
 ): Promise<number[]> {
   let res;
+  let lastError = 'Network Error';
 
   // Try data-api first as it is less sensitive
   try {
-    res = await fetch(`https://data-api.binance.vision/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
-  } catch (e) {}
+    res = await fetch(`https://data-api.binance.vision/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`, fetchOptions);
+    if (!res.ok) lastError = `data-api: ${res.status}`;
+  } catch (e: any) {
+    lastError = `data-api network error: ${e.message}`;
+  }
 
   if (!res || !res.ok) {
     const bases = [
@@ -81,17 +91,18 @@ export async function fetchKlines(
     
     for (const base of bases) {
       try {
-        res = await fetch(`${base}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
+        res = await fetch(`${base}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`, fetchOptions);
         if (res.ok) break;
-      } catch (e) {
+        lastError = `${base}: ${res.status}`;
+      } catch (e: any) {
+        lastError = `${base} network error: ${e.message}`;
         continue;
       }
     }
   }
 
   if (!res || !res.ok) {
-    console.error(`Kline fetch failed for ${symbol} ${interval}`);
-    return [];
+    throw new Error(`Kline fetch failed for ${symbol} ${interval}. Last Error: ${lastError}`);
   }
 
   const data: any[][] = await res.json() as any[][];

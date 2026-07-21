@@ -191,6 +191,12 @@ export function SettingsSheet({ isOpen, onClose, pushStatus, onSubscribe }: Sett
               Changes to the configuration require a refresh to take effect.
             </p>
           </section>
+
+          <div className="pt-4 border-t border-outline-variant/30 text-center">
+            <p className="text-body-sm text-on-surface-variant/70">
+              FoxLedger Screener • v1.0.1
+            </p>
+          </div>
         </div>
       </div>
     </>

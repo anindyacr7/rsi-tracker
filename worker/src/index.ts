@@ -3,6 +3,8 @@ import { fetchValidUSDTPairs, fetchKlines } from './binance';
 import { calculateRSI } from './rsi';
 import webpush from 'web-push';
 
+export const APP_VERSION = 'v1.0.1';
+
 export interface Env {
   DB: any; // D1Database
   TELEGRAM_BOT_TOKEN?: string;
@@ -53,19 +55,31 @@ export default {
 
     if (url.pathname === '/api/test-notification' && request.method === 'GET') {
       try {
-        const closes = await fetchKlines('BTCUSDT', '15m', 150);
         let rsiText = 'N/A';
-        if (closes.length > 14) {
-          const rsi = calculateRSI(closes, 14);
-          rsiText = rsi !== null ? rsi.toFixed(2) : 'N/A';
+        let errorText = '';
+        try {
+          const closes = await fetchKlines('BTCUSDT', '15m', 150);
+          if (closes.length > 14) {
+            const rsi = calculateRSI(closes, 14);
+            rsiText = rsi !== null ? rsi.toFixed(2) : 'N/A';
+          } else {
+            errorText = 'Not enough data points returned.';
+          }
+        } catch (e: any) {
+          errorText = e.message;
         }
         
-        const text = `🚨 *TEST RSI ALERT* 🚨\nToken: #BTCUSDT\nRSI (15m): ${rsiText}\nRank: 1`;
-        const webPushText = `[TEST] Token: #BTCUSDT\nRSI (15m): ${rsiText}\nRank: 1`;
+        let text = `🚨 *TEST RSI ALERT* 🚨\nToken: #BTCUSDT\nRSI (15m): ${rsiText}\nRank: 1\nWorker Version: ${APP_VERSION}`;
+        let webPushText = `[TEST] Token: #BTCUSDT\nRSI (15m): ${rsiText}\nRank: 1 (v${APP_VERSION})`;
+
+        if (errorText) {
+          text += `\n⚠️ *Error:* ${errorText}`;
+          webPushText += ` | Error: ${errorText}`;
+        }
         
         await sendTelegramMessage(env, text);
         await sendWebPush(env, webPushText);
-        return jsonResponse({ status: 'ok', message: 'Test notification sent successfully.' });
+        return jsonResponse({ status: 'ok', message: 'Test notification sent successfully.', version: APP_VERSION });
       } catch (err: any) {
         return jsonResponse({ status: 'error', message: err.message }, 500);
       }
@@ -95,12 +109,16 @@ async function handleCron(env: Env) {
       const chunk = tickers.slice(i, i + CHUNK_SIZE);
       const promises = chunk.map(async (ticker) => {
         const symbol = ticker.symbol;
-        const closes = await fetchKlines(symbol, '15m', 150);
-        if (closes.length > 14) {
-          const rsi = calculateRSI(closes, 14);
-          if (rsi !== null && rsi > 75) {
-            await processAlert(env, ticker, rsi, mcapMap.get(symbol.replace('USDT', ''))?.rank);
+        try {
+          const closes = await fetchKlines(symbol, '15m', 150);
+          if (closes.length > 14) {
+            const rsi = calculateRSI(closes, 14);
+            if (rsi !== null && rsi > 75) {
+              await processAlert(env, ticker, rsi, mcapMap.get(symbol.replace('USDT', ''))?.rank);
+            }
           }
+        } catch (e) {
+          console.warn(`Cron fetch failed for ${symbol}:`, e);
         }
       });
       await Promise.all(promises);
