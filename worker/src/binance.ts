@@ -6,12 +6,33 @@ export interface Ticker24h {
 }
 
 export async function fetchValidUSDTPairs(): Promise<Ticker24h[]> {
-  const base = 'https://data-api.binance.vision';
+  let res;
 
-  const res = await fetch(`${base}/api/v3/ticker/24hr`);
+  try {
+    res = await fetch('https://data-api.binance.vision/api/v3/ticker/24hr');
+  } catch (e) {}
 
-  if (!res.ok) {
-    throw new Error(`Binance ticker API error: ${res.status}`);
+  if (!res || !res.ok) {
+    const bases = [
+      'https://api.binance.com',
+      'https://api1.binance.com',
+      'https://api2.binance.com',
+      'https://api3.binance.com',
+      'https://api4.binance.com'
+    ];
+    
+    for (const base of bases) {
+      try {
+        res = await fetch(`${base}/api/v3/ticker/24hr`);
+        if (res.ok) break;
+      } catch (e) {
+        continue;
+      }
+    }
+  }
+
+  if (!res || !res.ok) {
+    throw new Error(`Binance ticker API error`);
   }
 
   const tickers: Ticker24h[] = await res.json() as Ticker24h[];
@@ -42,28 +63,30 @@ export async function fetchKlines(
   interval: string,
   limit: number = 150
 ): Promise<number[]> {
-  const bases = [
-    'https://api.binance.com',
-    'https://api1.binance.com',
-    'https://api2.binance.com',
-    'https://api3.binance.com',
-    'https://api4.binance.com'
-  ];
-  
   let res;
-  for (const base of bases) {
-    try {
-      res = await fetch(`${base}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
-      if (res.ok) break;
-    } catch (e) {
-      continue;
-    }
-  }
+
+  // Try data-api first as it is less sensitive
+  try {
+    res = await fetch(`https://data-api.binance.vision/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
+  } catch (e) {}
 
   if (!res || !res.ok) {
-    try {
-      res = await fetch(`https://data-api.binance.vision/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
-    } catch (e) {}
+    const bases = [
+      'https://api.binance.com',
+      'https://api1.binance.com',
+      'https://api2.binance.com',
+      'https://api3.binance.com',
+      'https://api4.binance.com'
+    ];
+    
+    for (const base of bases) {
+      try {
+        res = await fetch(`${base}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
+        if (res.ok) break;
+      } catch (e) {
+        continue;
+      }
+    }
   }
 
   if (!res || !res.ok) {
