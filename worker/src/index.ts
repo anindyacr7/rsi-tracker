@@ -31,7 +31,7 @@ export default {
     }
 
     if (url.pathname === '/api/scan' && request.method === 'GET') {
-      return handleScan();
+      return handleScan(request);
     }
     
     if (url.pathname === '/api/alerts' && request.method === 'GET') {
@@ -53,8 +53,18 @@ export default {
 
     if (url.pathname === '/api/test-notification' && request.method === 'GET') {
       try {
-        await sendTelegramMessage(env, `🟢 *Test Notification* 🟢\nServer is UP and running!`);
-        await sendWebPush(env, `🟢 Server is UP and running!`);
+        const closes = await fetchKlines('BTCUSDT', '15m', 150);
+        let rsiText = 'N/A';
+        if (closes.length > 14) {
+          const rsi = calculateRSI(closes, 14);
+          rsiText = rsi !== null ? rsi.toFixed(2) : 'N/A';
+        }
+        
+        const text = `🟢 *Test Notification* 🟢\nServer is UP!\nBTC RSI (15m): ${rsiText}`;
+        const webPushText = `🟢 Server is UP! BTC RSI (15m): ${rsiText}`;
+        
+        await sendTelegramMessage(env, text);
+        await sendWebPush(env, webPushText);
         return jsonResponse({ status: 'ok', message: 'Test notification sent successfully.' });
       } catch (err: any) {
         return jsonResponse({ status: 'error', message: err.message }, 500);
@@ -220,9 +230,13 @@ async function sendTelegramMessage(env: Env, text: string) {
   }
 }
 
-async function handleScan(): Promise<Response> {
+async function handleScan(request: Request): Promise<Response> {
   try {
-    const { mcapMap, source } = await fetchMarketCaps(0);
+    const url = new URL(request.url);
+    const mcapProvider = url.searchParams.get('mcapProvider');
+    const keyIndex = mcapProvider === 'coinlore' ? -1 : 0;
+    
+    const { mcapMap, source } = await fetchMarketCaps(keyIndex);
 
     const results = Array.from(mcapMap.entries()).map(([base, data]) => ({
       base,

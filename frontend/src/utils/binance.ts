@@ -17,8 +17,13 @@ export async function fetchValidUSDTPairs(): Promise<Ticker24h[]> {
   
   let res;
   try {
-    const base = bases[Math.floor(Math.random() * bases.length)];
-    res = await fetch(`${base}/api/v3/ticker/24hr`);
+    const provider = localStorage.getItem('apiProvider') || 'binanceApi';
+    if (provider === 'binanceData') {
+      res = await fetch('https://data-api.binance.vision/api/v3/ticker/24hr');
+    } else {
+      const base = bases[Math.floor(Math.random() * bases.length)];
+      res = await fetch(`${base}/api/v3/ticker/24hr`);
+    }
     if (!res.ok) throw new Error(`Status ${res.status}`);
   } catch (err) {
     console.warn(`Primary Binance API failed, falling back to data-api...`, err);
@@ -67,8 +72,13 @@ export async function fetchKlines(
   
   let res;
   try {
-    const base = bases[Math.floor(Math.random() * bases.length)];
-    res = await fetch(`${base}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
+    const provider = localStorage.getItem('apiProvider') || 'binanceApi';
+    if (provider === 'binanceData') {
+      res = await fetch(`https://data-api.binance.vision/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
+    } else {
+      const base = bases[Math.floor(Math.random() * bases.length)];
+      res = await fetch(`${base}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
+    }
     if (!res.ok) throw new Error(`Status ${res.status}`);
   } catch (err) {
     // console.warn(`Kline fetch failed for ${symbol}, falling back...`);

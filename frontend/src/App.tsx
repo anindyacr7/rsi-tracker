@@ -61,7 +61,11 @@ export default function App() {
     setSecondsElapsed(0);
     const interval = setInterval(() => setSecondsElapsed(s => s + 1), 1000);
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || '/api/scan';
+      let apiUrl = import.meta.env.VITE_API_URL || '/api/scan';
+      const mcapProvider = localStorage.getItem('mcapProvider');
+      if (mcapProvider) {
+        apiUrl += `?mcapProvider=${mcapProvider}`;
+      }
 
       // 1 & 2. Fetch CMC Data AND Binance Tickers concurrently to save ~0.5s - 1s
       const [mcapRes, allTickers] = await Promise.all([
