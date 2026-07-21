@@ -70,6 +70,28 @@ export function TopAppBar({ loading, onRefresh }: TopAppBarProps) {
     }
   };
 
+  const openSettings = () => {
+    setIsSettingsOpen(true);
+    window.history.pushState({ modal: 'settings' }, '');
+  };
+
+  const closeSettings = () => {
+    setIsSettingsOpen(false);
+    if (window.history.state?.modal === 'settings') {
+      window.history.back();
+    }
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (isSettingsOpen) {
+        setIsSettingsOpen(false);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [isSettingsOpen]);
+
   return (
     <>
       <header className="fixed top-0 w-full z-50 bg-surface-container/80 dark:bg-surface-container/80 backdrop-blur-md border-b border-outline-variant/30 flex justify-between items-center px-margin-mobile md:px-margin-desktop h-16 transition-colors">
@@ -80,7 +102,7 @@ export function TopAppBar({ loading, onRefresh }: TopAppBarProps) {
         
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setIsSettingsOpen(true)}
+            onClick={openSettings}
             title="Settings"
             className="flex items-center justify-center p-2 rounded-full hover:bg-surface-container-highest/50 text-on-surface-variant transition-colors active:scale-95"
           >
@@ -101,7 +123,7 @@ export function TopAppBar({ loading, onRefresh }: TopAppBarProps) {
 
       <SettingsSheet 
         isOpen={isSettingsOpen} 
-        onClose={() => setIsSettingsOpen(false)} 
+        onClose={closeSettings} 
         pushStatus={pushStatus} 
         onSubscribe={handleSubscribe} 
       />
