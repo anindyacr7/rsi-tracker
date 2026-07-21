@@ -4,6 +4,7 @@ import { TopAppBar } from './components/TopAppBar';
 import { BottomNavBar } from './components/BottomNavBar';
 import { DataTable } from './components/DataTable';
 import { AlertsTable } from './components/AlertsTable';
+import { SettingsTab } from './components/SettingsTab';
 
 import { fetchValidUSDTPairs, fetchKlines } from './utils/binance';
 import { calculateRSI } from './utils/rsi';
@@ -18,7 +19,7 @@ export default function App() {
   // Load initial state from URL or localStorage
   const getInitialState = () => {
     const params = new URLSearchParams(window.location.search);
-    const tab = (params.get('tab') || localStorage.getItem('activeTab') || 'rsi') as 'rsi' | 'movers' | 'alerts';
+    const tab = (params.get('tab') || localStorage.getItem('activeTab') || 'rsi') as 'rsi' | 'movers' | 'alerts' | 'settings';
     
     let initialRsiSort = { field: null, dir: 'desc' as SortDirection };
     try { initialRsiSort = JSON.parse(localStorage.getItem('rsiSort') || '') || initialRsiSort; } catch {}
@@ -31,7 +32,7 @@ export default function App() {
 
   const initialState = useMemo(getInitialState, []);
 
-  const [activeTab, setActiveTab] = useState<'rsi' | 'movers' | 'alerts'>(initialState.tab);
+  const [activeTab, setActiveTab] = useState<'rsi' | 'movers' | 'alerts' | 'settings'>(initialState.tab);
   const [alertsData, setAlertsData] = useState<Alert[]>([]);
   const [alertsLoading, setAlertsLoading] = useState(false);
 
@@ -227,7 +228,7 @@ export default function App() {
   return (
     <div className="font-body-base text-body-base bg-background min-h-screen flex flex-col overflow-hidden pb-[64px] md:pb-0 pt-[64px] text-on-background">
 
-      <TopAppBar loading={loading} onRefresh={fetchData} />
+      <TopAppBar loading={loading} onRefresh={fetchData} onSettingsClick={() => setActiveTab('settings')} />
 
       {/* Main Content Area */}
       <main className="flex-1 overflow-auto w-full relative">
@@ -248,6 +249,8 @@ export default function App() {
 
           {activeTab === 'alerts' ? (
             <AlertsTable data={alertsData} loading={alertsLoading} />
+          ) : activeTab === 'settings' ? (
+            <SettingsTab />
           ) : (
             <DataTable
               activeTab={activeTab as 'rsi' | 'movers'}
