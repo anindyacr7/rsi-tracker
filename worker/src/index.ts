@@ -32,6 +32,10 @@ export default {
       return handleSubscribe(request, env);
     }
 
+    if (url.pathname === '/api/unsubscribe' && request.method === 'POST') {
+      return handleUnsubscribe(request, env);
+    }
+
     if (url.pathname === '/api/scan' && request.method === 'GET') {
       return handleScan(request);
     }
@@ -306,5 +310,21 @@ async function handleSubscribe(request: Request, env: Env) {
     return jsonResponse({ status: 'ok' });
   } catch (err: any) {
     return jsonResponse({ error: 'Failed to subscribe', message: err.message }, 500);
+  }
+}
+
+async function handleUnsubscribe(request: Request, env: Env) {
+  try {
+    const body = await request.json() as any;
+    const { endpoint } = body;
+    if (!endpoint) {
+      return jsonResponse({ error: 'Invalid unsubscribe object' }, 400);
+    }
+    await env.DB.prepare('DELETE FROM push_subscriptions WHERE endpoint = ?')
+      .bind(endpoint)
+      .run();
+    return jsonResponse({ status: 'ok' });
+  } catch (err: any) {
+    return jsonResponse({ error: 'Failed to unsubscribe', message: err.message }, 500);
   }
 }

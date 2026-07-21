@@ -5,10 +5,12 @@ interface SettingsSheetProps {
   isOpen: boolean;
   onClose: () => void;
   pushStatus: 'default' | 'granted' | 'denied';
+  isSubscribed: boolean;
   onSubscribe: () => void;
+  onUnsubscribe: () => void;
 }
 
-export function SettingsSheet({ isOpen, onClose, pushStatus, onSubscribe }: SettingsSheetProps) {
+export function SettingsSheet({ isOpen, onClose, pushStatus, isSubscribed, onSubscribe, onUnsubscribe }: SettingsSheetProps) {
   const [apiProvider, setApiProvider] = useState(() => {
     return localStorage.getItem('apiProvider') || 'binanceApi';
   });
@@ -76,30 +78,30 @@ export function SettingsSheet({ isOpen, onClose, pushStatus, onSubscribe }: Sett
             
             <div className="flex items-center justify-between p-4 rounded-xl bg-surface-container-highest/30 border border-outline-variant/20">
               <div className="flex items-center gap-3">
-                <span className={clsx("material-symbols-outlined", pushStatus === 'granted' ? "text-secondary" : "text-on-surface-variant")} 
-                      style={pushStatus === 'granted' ? { fontVariationSettings: "'FILL' 1" } : {}}>
+                <span className={clsx("material-symbols-outlined", isSubscribed ? "text-secondary" : "text-on-surface-variant")} 
+                      style={isSubscribed ? { fontVariationSettings: "'FILL' 1" } : {}}>
                   notifications
                 </span>
                 <div>
                   <p className="text-body-lg font-medium text-on-surface">Push Notifications</p>
                   <p className="text-body-sm text-on-surface-variant">
-                    {pushStatus === 'granted' ? 'Enabled' : pushStatus === 'denied' ? 'Blocked' : 'Disabled'}
+                    {isSubscribed ? 'Subscribed' : pushStatus === 'denied' ? 'Blocked' : 'Disabled'}
                   </p>
                 </div>
               </div>
               <button
-                onClick={onSubscribe}
-                disabled={pushStatus === 'granted' || pushStatus === 'denied'}
+                onClick={isSubscribed ? onUnsubscribe : onSubscribe}
+                disabled={pushStatus === 'denied'}
                 className={clsx(
                   "px-4 py-2 rounded-full font-medium text-sm transition-colors",
-                  pushStatus === 'granted' 
-                    ? "bg-secondary/20 text-secondary cursor-not-allowed" 
+                  isSubscribed 
+                    ? "bg-error/20 text-error hover:bg-error/30 active:scale-95" 
                     : pushStatus === 'denied'
                     ? "bg-error/20 text-error cursor-not-allowed"
                     : "bg-primary text-on-primary hover:bg-primary/90 active:scale-95"
                 )}
               >
-                {pushStatus === 'granted' ? 'Subscribed' : pushStatus === 'denied' ? 'Blocked' : 'Enable'}
+                {isSubscribed ? 'Unsubscribe' : pushStatus === 'denied' ? 'Blocked' : 'Enable'}
               </button>
             </div>
 

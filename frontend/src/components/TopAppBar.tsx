@@ -22,11 +22,21 @@ const urlB64ToUint8Array = (base64String: string) => {
 
 export function TopAppBar({ loading, onRefresh }: TopAppBarProps) {
   const [pushStatus, setPushStatus] = useState<'default' | 'granted' | 'denied'>('default');
+  const [isSubscribed, setIsSubscribed] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   useEffect(() => {
     if ('Notification' in window) {
       setPushStatus(Notification.permission);
+    }
+    
+    // Check if there is an active subscription
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      navigator.serviceWorker.ready.then(registration => {
+        registration.pushManager.getSubscription().then(subscription => {
+          setIsSubscribed(subscription !== null);
+        });
+      });
     }
   }, []);
 
@@ -63,10 +73,39 @@ export function TopAppBar({ loading, onRefresh }: TopAppBarProps) {
           body: JSON.stringify(subscription)
         });
 
+        setIsSubscribed(true);
         alert('Subscribed to notifications successfully!');
       } catch (err) {
         console.error('Failed to subscribe the user: ', err);
       }
+    }
+  };
+
+  const handleUnsubscribe = async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      return;
+    }
+
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      
+      if (subscription) {
+        const apiUrl = import.meta.env.VITE_API_URL || '/api/scan';
+        const unsubscribeUrl = apiUrl.replace('/scan', '/unsubscribe');
+
+        await fetch(unsubscribeUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ endpoint: subscription.endpoint })
+        });
+
+        await subscription.unsubscribe();
+        setIsSubscribed(false);
+        alert('Unsubscribed from notifications successfully.');
+      }
+    } catch (err) {
+      console.error('Failed to unsubscribe', err);
     }
   };
 
@@ -125,7 +164,9 @@ export function TopAppBar({ loading, onRefresh }: TopAppBarProps) {
         isOpen={isSettingsOpen} 
         onClose={closeSettings} 
         pushStatus={pushStatus} 
+        isSubscribed={isSubscribed}
         onSubscribe={handleSubscribe} 
+        onUnsubscribe={handleUnsubscribe}
       />
     </>
   );
