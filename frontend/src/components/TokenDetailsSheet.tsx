@@ -54,7 +54,8 @@ export function TokenDetailsSheet({ token, onClose, volumeRank }: TokenDetailsSh
     const chart = createChart(chartContainerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: '#8d90a1',
+        textColor: '#9fa1a8',
+        attributionLogo: false,
       },
       grid: {
         vertLines: { color: 'rgba(255,255,255,0.03)' },
@@ -169,7 +170,7 @@ export function TokenDetailsSheet({ token, onClose, volumeRank }: TokenDetailsSh
               </div>
             </div>
 
-            <div className="h-64 w-full relative">
+            <div className="h-64 w-full relative mb-3">
               {loading && chartData.length === 0 && (
                 <div className="absolute inset-0 flex items-center justify-center bg-transparent z-10">
                   <span className="material-symbols-outlined text-[32px] animate-spin text-primary">refresh</span>
@@ -177,6 +178,16 @@ export function TokenDetailsSheet({ token, onClose, volumeRank }: TokenDetailsSh
               )}
               <div ref={chartContainerRef} className="w-full h-full" />
             </div>
+
+            <a 
+              href={`https://www.tradingview.com/chart/?symbol=BINANCE:${token.symbol}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full py-2.5 bg-surface-container-highest hover:bg-surface-variant rounded-xl text-on-surface text-[13px] font-medium transition-colors"
+            >
+              <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+              Open Full Chart in TradingView
+            </a>
           </div>
 
           {/* Stats Grid (2x2 Bento Style) */}

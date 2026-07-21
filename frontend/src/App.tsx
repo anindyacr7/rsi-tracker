@@ -45,10 +45,33 @@ export default function App() {
   // Sync to localStorage and URL
   useEffect(() => {
     localStorage.setItem('activeTab', activeTab);
+    
     const url = new URL(window.location.href);
-    url.searchParams.set('tab', activeTab);
-    window.history.replaceState({}, '', url);
+    const currentTab = url.searchParams.get('tab');
+    
+    if (currentTab !== activeTab) {
+      url.searchParams.set('tab', activeTab);
+      // Only push state if we are actually changing tabs from what's in the URL
+      if (currentTab !== null) {
+        window.history.pushState({ tab: activeTab }, '', url);
+      } else {
+        window.history.replaceState({ tab: activeTab }, '', url);
+      }
+    }
   }, [activeTab]);
+
+  // Handle browser back button
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab') as any;
+      if (tab && ['rsi', 'movers', 'alerts', 'settings'].includes(tab)) {
+        setActiveTab(tab);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('rsiSort', JSON.stringify(rsiSort));
