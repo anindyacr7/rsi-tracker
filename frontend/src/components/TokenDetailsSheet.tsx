@@ -15,7 +15,7 @@ interface TokenDetailsSheetProps {
 export function TokenDetailsSheet({ token, onClose, tokenRsi }: TokenDetailsSheetProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const [interval, setInterval] = useState<'15m' | '1h' | '4h' | '1d'>(() => {
+  const [interval, setInterval] = useState<'5m' | '15m' | '1h' | '4h' | '1d'>(() => {
     return (localStorage.getItem('chartInterval') as any) || '15m';
   });
   const [chartData, setChartData] = useState<KlineOHLC[]>([]);
@@ -158,7 +158,7 @@ export function TokenDetailsSheet({ token, onClose, tokenRsi }: TokenDetailsShee
             <div className="flex justify-between items-center mb-4">
               <span className="font-label-caps text-[12px] text-outline font-semibold uppercase">Market Trend</span>
               <div className="flex bg-surface-container-lowest rounded-full p-1 border border-outline-variant/20">
-                {(['15m', '1h', '4h', '1d'] as const).map(i => (
+                {(['5m', '15m', '1h', '4h', '1d'] as const).map(i => (
                   <button
                     key={i}
                     onClick={() => setInterval(i)}

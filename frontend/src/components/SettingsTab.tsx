@@ -392,7 +392,7 @@ export function SettingsTab() {
         <div>
           <h3 className="text-primary font-semibold mb-4 px-1">Default Chart Interval</h3>
           <div className="grid grid-cols-2 gap-2">
-            {['15m', '1h', '4h', '1d'].map((iv) => (
+            {['5m', '15m', '1h', '4h', '1d'].map((iv) => (
               <label key={iv} className="flex items-center gap-4 bg-[#1e1e22]/40 backdrop-blur-md p-4 rounded-xl border border-outline-variant cursor-pointer group hover:bg-surface-variant/30 transition-colors">
                 <input
                   type="radio"
