@@ -20,6 +20,30 @@ export function SettingsSheet({ isOpen, onClose, pushStatus, isSubscribed, onSub
   });
   
   const [testNotificationLoading, setTestNotificationLoading] = useState(false);
+  const [clearAlertsLoading, setClearAlertsLoading] = useState(false);
+  const [rsiThreshold, setRsiThreshold] = useState(75);
+  const [isSavingThreshold, setIsSavingThreshold] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      const fetchSettings = async () => {
+        try {
+          const apiUrl = import.meta.env.VITE_API_URL || '/api/scan';
+          const settingsUrl = apiUrl.replace('/scan', '/settings');
+          const res = await fetch(settingsUrl);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.settings && data.settings['rsi_threshold']) {
+              setRsiThreshold(parseFloat(data.settings['rsi_threshold']));
+            }
+          }
+        } catch (err) {
+          console.error("Failed to fetch settings", err);
+        }
+      };
+      fetchSettings();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     localStorage.setItem('apiProvider', apiProvider);
@@ -43,6 +67,45 @@ export function SettingsSheet({ isOpen, onClose, pushStatus, isSubscribed, onSub
       alert('Error sending test notification');
     } finally {
       setTestNotificationLoading(false);
+    }
+  };
+
+  const handleClearAlerts = async () => {
+    if (!window.confirm('Are you sure you want to clear all RSI alerts data? This will empty the feed in the UI.')) return;
+    try {
+      setClearAlertsLoading(true);
+      const apiUrl = import.meta.env.VITE_API_URL || '/api/scan';
+      const clearUrl = apiUrl.replace('/scan', '/alerts');
+      
+      const res = await fetch(clearUrl, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to clear alerts data');
+      alert('Alerts data cleared successfully! Refresh the page to see changes.');
+    } catch (err: any) {
+      console.error(err);
+      alert('Error clearing alerts data');
+    } finally {
+      setClearAlertsLoading(false);
+    }
+  };
+
+  const handleSaveThreshold = async (val: number) => {
+    try {
+      setIsSavingThreshold(true);
+      const apiUrl = import.meta.env.VITE_API_URL || '/api/scan';
+      const settingsUrl = apiUrl.replace('/scan', '/settings');
+      const res = await fetch(settingsUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'rsi_threshold', value: val })
+      });
+      if (res.ok) {
+        // Optional: show a small success indication
+      }
+    } catch (err) {
+      console.error("Failed to save threshold", err);
+      alert('Error saving threshold');
+    } finally {
+      setIsSavingThreshold(false);
     }
   };
 
@@ -105,6 +168,32 @@ export function SettingsSheet({ isOpen, onClose, pushStatus, isSubscribed, onSub
               </button>
             </div>
 
+            <div className="flex items-center justify-between p-4 rounded-xl bg-surface-container-highest/30 border border-outline-variant/20">
+              <div className="flex flex-col">
+                <span className="text-body-md font-medium text-on-surface">Global RSI Threshold</span>
+                <span className="text-body-sm text-on-surface-variant">Minimum RSI for alerts</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="50"
+                  max="95"
+                  value={rsiThreshold}
+                  onChange={(e) => setRsiThreshold(parseInt(e.target.value) || 75)}
+                  className="w-16 p-2 text-center rounded-lg bg-surface-container border border-outline-variant text-on-surface focus:outline-none focus:border-primary"
+                />
+                <button
+                  onClick={() => handleSaveThreshold(rsiThreshold)}
+                  disabled={isSavingThreshold}
+                  className="flex items-center justify-center p-2 rounded-lg bg-primary text-on-primary hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                >
+                  <span className={clsx("material-symbols-outlined text-[20px]", isSavingThreshold && "animate-spin")}>
+                    {isSavingThreshold ? 'sync' : 'save'}
+                  </span>
+                </button>
+              </div>
+            </div>
+
             <button
               onClick={handleTestNotification}
               disabled={testNotificationLoading}
@@ -114,6 +203,17 @@ export function SettingsSheet({ isOpen, onClose, pushStatus, isSubscribed, onSub
                 {testNotificationLoading ? 'sync' : 'send'}
               </span>
               Send Test Notification (BTC RSI)
+            </button>
+
+            <button
+              onClick={handleClearAlerts}
+              disabled={clearAlertsLoading}
+              className="w-full flex items-center justify-center gap-2 p-3 rounded-xl border border-error/30 text-error hover:bg-error/10 transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span className={clsx("material-symbols-outlined", clearAlertsLoading && "animate-spin")}>
+                {clearAlertsLoading ? 'sync' : 'delete_sweep'}
+              </span>
+              Clear Alerts History
             </button>
           </section>
 

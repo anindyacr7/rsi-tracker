@@ -40,8 +40,14 @@ export default {
       return handleScan(request);
     }
     
-    if (url.pathname === '/api/alerts' && request.method === 'GET') {
-      return handleAlerts(env);
+    if (url.pathname === '/api/alerts') {
+      if (request.method === 'GET') return handleAlerts(env);
+      if (request.method === 'DELETE') return handleClearAlerts(env);
+    }
+
+    if (url.pathname === '/api/settings') {
+      if (request.method === 'GET') return handleGetSettings(env);
+      if (request.method === 'PUT') return handlePutSettings(request, env);
     }
 
     if (url.pathname === '/api/test-binance' && request.method === 'GET') {
@@ -60,6 +66,9 @@ export default {
 
     if (url.pathname === '/api/test-notification' && request.method === 'GET') {
       try {
+        const thresholdRecord = await env.DB.prepare("SELECT value FROM global_settings WHERE key = 'rsi_threshold'").first();
+        const rsiThreshold = thresholdRecord ? parseFloat(thresholdRecord.value) : 75;
+
         let rsiText = 'N/A';
         let errorText = '';
         let activeProvider = 'Unknown';
@@ -77,8 +86,8 @@ export default {
           errorText = e.message;
         }
         
-        let text = `🚨 *TEST RSI ALERT* 🚨\nToken: #BTCUSDT\nRSI (15m): ${rsiText}\nProvider: ${activeProvider}\nWorker: ${APP_VERSION}`;
-        let webPushText = `[TEST] #BTCUSDT | RSI: ${rsiText} | Src: ${activeProvider} (v${APP_VERSION})`;
+        let text = `🚨 *TEST RSI ALERT* 🚨\nToken: #BTCUSDT\nRSI (15m): ${rsiText}\nThreshold: ${rsiThreshold}\nProvider: ${activeProvider}\nWorker: ${APP_VERSION}`;
+        let webPushText = `[TEST] #BTCUSDT | RSI: ${rsiText} (>${rsiThreshold}) | Src: ${activeProvider} (v${APP_VERSION})`;
 
         if (errorText) {
           text += `\n⚠️ *Error:* ${errorText}`;
@@ -103,6 +112,9 @@ export default {
 
 async function handleCron(env: Env) {
   try {
+    const thresholdRecord = await env.DB.prepare("SELECT value FROM global_settings WHERE key = 'rsi_threshold'").first();
+    const rsiThreshold = thresholdRecord ? parseFloat(thresholdRecord.value) : 75;
+
     const { mcapMap } = await fetchMarketCaps(1, env.DB); // Use CMC key 1 and pass D1 DB for caching
     const { provider, tickers: allTickers } = await fetchValidUSDTPairs();
 
@@ -121,7 +133,7 @@ async function handleCron(env: Env) {
           const closes = await fetchKlines(symbol, '15m', 150, provider);
           if (closes.length > 14) {
             const rsi = calculateRSI(closes, 14);
-            if (rsi !== null && rsi > 75) {
+            if (rsi !== null && rsi >= rsiThreshold) {
               await processAlert(env, ticker, rsi, mcapMap.get(symbol.replace('USDT', ''))?.rank);
             }
           }
@@ -291,6 +303,16 @@ async function handleAlerts(env: Env): Promise<Response> {
   }
 }
 
+async function handleClearAlerts(env: Env): Promise<Response> {
+  try {
+    await env.DB.prepare('DELETE FROM rsi_alerts').run();
+    return jsonResponse({ status: 'ok' });
+  } catch (err: any) {
+    console.error('Clear alerts error:', err);
+    return jsonResponse({ error: 'Failed to clear alerts', message: err?.message ?? 'Unknown error' }, 500);
+  }
+}
+
 function jsonResponse(data: unknown, status: number = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
@@ -330,5 +352,34 @@ async function handleUnsubscribe(request: Request, env: Env) {
     return jsonResponse({ status: 'ok' });
   } catch (err: any) {
     return jsonResponse({ error: 'Failed to unsubscribe', message: err.message }, 500);
+  }
+}
+
+async function handleGetSettings(env: Env) {
+  try {
+    const result = await env.DB.prepare("SELECT key, value FROM global_settings").all();
+    const settings: Record<string, string> = {};
+    for (const row of result.results) {
+      settings[row.key as string] = row.value as string;
+    }
+    return jsonResponse({ settings });
+  } catch (err: any) {
+    return jsonResponse({ error: 'Failed to fetch settings', message: err.message }, 500);
+  }
+}
+
+async function handlePutSettings(request: Request, env: Env) {
+  try {
+    const body = await request.json() as any;
+    const { key, value } = body;
+    if (!key || value === undefined) {
+      return jsonResponse({ error: 'Invalid settings object' }, 400);
+    }
+    await env.DB.prepare('INSERT OR REPLACE INTO global_settings (key, value, updated_at) VALUES (?, ?, ?)')
+      .bind(key, value.toString(), Date.now())
+      .run();
+    return jsonResponse({ status: 'ok' });
+  } catch (err: any) {
+    return jsonResponse({ error: 'Failed to update settings', message: err.message }, 500);
   }
 }
