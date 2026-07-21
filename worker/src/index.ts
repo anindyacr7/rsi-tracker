@@ -46,8 +46,9 @@ export default {
 
     if (url.pathname === '/api/test-binance' && request.method === 'GET') {
       try {
-        const closes = await fetchKlines('BTCUSDT', '15m', 150);
-        return jsonResponse({ status: 'ok', data: closes, length: closes.length });
+        const { provider } = await fetchValidUSDTPairs();
+        const closes = await fetchKlines('BTCUSDT', '15m', 150, provider);
+        return jsonResponse({ status: 'ok', data: closes, length: closes.length, provider });
       } catch (err: any) {
         return jsonResponse({ status: 'error', message: err.message }, 500);
       }
@@ -61,8 +62,11 @@ export default {
       try {
         let rsiText = 'N/A';
         let errorText = '';
+        let activeProvider = 'Unknown';
         try {
-          const closes = await fetchKlines('BTCUSDT', '15m', 150);
+          const { provider } = await fetchValidUSDTPairs();
+          activeProvider = provider;
+          const closes = await fetchKlines('BTCUSDT', '15m', 150, provider);
           if (closes.length > 14) {
             const rsi = calculateRSI(closes, 14);
             rsiText = rsi !== null ? rsi.toFixed(2) : 'N/A';
@@ -73,8 +77,8 @@ export default {
           errorText = e.message;
         }
         
-        let text = `🚨 *TEST RSI ALERT* 🚨\nToken: #BTCUSDT\nRSI (15m): ${rsiText}\nRank: 1\nWorker Version: ${APP_VERSION}`;
-        let webPushText = `[TEST] Token: #BTCUSDT\nRSI (15m): ${rsiText}\nRank: 1 (v${APP_VERSION})`;
+        let text = `🚨 *TEST RSI ALERT* 🚨\nToken: #BTCUSDT\nRSI (15m): ${rsiText}\nProvider: ${activeProvider}\nWorker: ${APP_VERSION}`;
+        let webPushText = `[TEST] #BTCUSDT | RSI: ${rsiText} | Src: ${activeProvider} (v${APP_VERSION})`;
 
         if (errorText) {
           text += `\n⚠️ *Error:* ${errorText}`;
@@ -100,7 +104,7 @@ export default {
 async function handleCron(env: Env) {
   try {
     const { mcapMap } = await fetchMarketCaps(1, env.DB); // Use CMC key 1 and pass D1 DB for caching
-    const allTickers = await fetchValidUSDTPairs();
+    const { provider, tickers: allTickers } = await fetchValidUSDTPairs();
 
     // Filter tickers by CMC Top 250
     const tickers = allTickers.filter(t => {
@@ -114,7 +118,7 @@ async function handleCron(env: Env) {
       const promises = chunk.map(async (ticker) => {
         const symbol = ticker.symbol;
         try {
-          const closes = await fetchKlines(symbol, '15m', 150);
+          const closes = await fetchKlines(symbol, '15m', 150, provider);
           if (closes.length > 14) {
             const rsi = calculateRSI(closes, 14);
             if (rsi !== null && rsi > 75) {

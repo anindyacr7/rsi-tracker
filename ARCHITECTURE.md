@@ -28,6 +28,7 @@ The worker has two primary modes of execution:
 - **`/api/alerts`**: Fetches the last 24h of RSI alerts from the D1 Database.
 - **`/api/scan`**: Fetches current market cap rankings.
 - **`/api/subscribe`**: Handles Web Push subscription registration.
+- **`/api/unsubscribe`**: Removes a Web Push subscription.
 
 ### Database (Cloudflare D1)
 
@@ -38,7 +39,14 @@ The system uses Cloudflare D1 (SQLite) to store alerts, subscriptions, and cachi
 
 ### External Services & Integrations
 
-- **Binance Data API**: Provides Klines and 24h Ticker data.
+- **API Provider Discovery Pattern**: Because Cloudflare Worker IPs are often blocked by crypto exchanges (specifically Binance), the worker implements a "Provider Discovery Pattern". At the start of every execution, it sequentially tests:
+  1. Binance Data API (`data-api.binance.vision`)
+  2. Binance Main API (`api.binance.com`, `api1` through `api4`)
+  3. Bybit API (`api.bybit.com`)
+  4. KuCoin API (`api.kucoin.com`)
+  
+  Once a working provider is discovered during the initial 24h ticker fetch, the worker passes this `provider` flag directly to all subsequent chunked Kline (candlestick) fetches. This prevents hundreds of failed requests per run and ensures high performance.
+- **CoinMarketCap / Coinlore**: Provides Market Cap data for filtering the top N tokens.
 - **Telegram Bot API**: Used to send Markdown-formatted messages to a configured Chat ID.
 - **Web Push**: Sends native browser notifications to subscribed clients.
 
