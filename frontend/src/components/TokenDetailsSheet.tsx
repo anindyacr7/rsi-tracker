@@ -14,7 +14,9 @@ interface TokenDetailsSheetProps {
 export function TokenDetailsSheet({ token, onClose, tokenRsi }: TokenDetailsSheetProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const [interval, setInterval] = useState<'15m' | '1h' | '4h' | '1d'>('1h');
+  const [interval, setInterval] = useState<'15m' | '1h' | '4h' | '1d'>(() => {
+    return (localStorage.getItem('chartInterval') as any) || '15m';
+  });
   const [chartData, setChartData] = useState<KlineOHLC[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -184,22 +186,45 @@ export function TokenDetailsSheet({ token, onClose, tokenRsi }: TokenDetailsShee
           <div className="grid grid-cols-2 gap-4 mb-6">
             {/* RSI Card */}
             <div className="bg-[#1e1e22]/40 backdrop-blur-md border border-white/10 rounded-xl p-4 flex flex-col justify-between h-32">
-              <div className="flex justify-between items-start">
-                <span className="font-label-caps text-[12px] text-outline font-semibold">RSI (4h)</span>
+              <div className="flex justify-between items-start mb-2">
+                <span className="font-label-caps text-[12px] text-outline font-semibold">RSI</span>
                 <span className="material-symbols-outlined text-outline text-[18px]">info</span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="font-headline-md text-[24px] text-on-surface font-data-tabular font-bold">
-                  {tokenRsi !== undefined ? tokenRsi.toFixed(1) : '--'}
-                </span>
-                {tokenRsi !== undefined && (
-                  <span className={clsx("px-2 py-0.5 rounded-full text-[10px] font-label-caps font-bold",
-                    tokenRsi >= 75 ? "bg-error/20 text-error" :
-                      tokenRsi <= 30 ? "bg-secondary/20 text-secondary" :
-                        "bg-primary/20 text-primary")}>
-                    {tokenRsi >= 75 ? 'OVERBOUGHT' : tokenRsi <= 30 ? 'OVERSOLD' : 'NEUTRAL'}
-                  </span>
-                )}
+              
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-on-surface-variant font-medium font-data-tabular">15m</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[16px] text-on-surface font-data-tabular font-bold">
+                      {token.rsi15m !== null && token.rsi15m !== undefined ? token.rsi15m.toFixed(1) : '--'}
+                    </span>
+                    {token.rsi15m !== null && token.rsi15m !== undefined && (
+                      <span className={clsx("px-1.5 py-[1px] rounded text-[9px] font-label-caps font-bold",
+                        token.rsi15m >= 75 ? "bg-error/20 text-error" :
+                          token.rsi15m <= 30 ? "bg-secondary/20 text-secondary" :
+                            "bg-primary/20 text-primary")}>
+                        {token.rsi15m >= 75 ? 'OB' : token.rsi15m <= 30 ? 'OS' : 'N'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-on-surface-variant font-medium font-data-tabular">4h</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[16px] text-on-surface font-data-tabular font-bold">
+                      {token.rsi4h !== null && token.rsi4h !== undefined ? token.rsi4h.toFixed(1) : '--'}
+                    </span>
+                    {token.rsi4h !== null && token.rsi4h !== undefined && (
+                      <span className={clsx("px-1.5 py-[1px] rounded text-[9px] font-label-caps font-bold",
+                        token.rsi4h >= 75 ? "bg-error/20 text-error" :
+                          token.rsi4h <= 30 ? "bg-secondary/20 text-secondary" :
+                            "bg-primary/20 text-primary")}>
+                        {token.rsi4h >= 75 ? 'OB' : token.rsi4h <= 30 ? 'OS' : 'N'}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 

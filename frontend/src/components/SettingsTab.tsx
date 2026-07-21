@@ -22,6 +22,10 @@ export function SettingsTab() {
   const [mcapProvider, setMcapProvider] = useState(() => {
     return localStorage.getItem('mcapProvider') || 'cmc';
   });
+
+  const [chartInterval, setChartInterval] = useState(() => {
+    return localStorage.getItem('chartInterval') || '15m';
+  });
   
   const [testNotificationLoading, setTestNotificationLoading] = useState(false);
   const [clearAlertsLoading, setClearAlertsLoading] = useState(false);
@@ -73,6 +77,10 @@ export function SettingsTab() {
   useEffect(() => {
     localStorage.setItem('mcapProvider', mcapProvider);
   }, [mcapProvider]);
+
+  useEffect(() => {
+    localStorage.setItem('chartInterval', chartInterval);
+  }, [chartInterval]);
 
   const handleSubscribe = async () => {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
@@ -378,6 +386,25 @@ export function SettingsTab() {
                 <p className="text-sm text-on-surface-variant">Fallback endpoints (api.coinlore.net)</p>
               </div>
             </label>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-primary font-semibold mb-4 px-1">Default Chart Interval</h3>
+          <div className="grid grid-cols-2 gap-2">
+            {['15m', '1h', '4h', '1d'].map((iv) => (
+              <label key={iv} className="flex items-center gap-4 bg-[#1e1e22]/40 backdrop-blur-md p-4 rounded-xl border border-outline-variant cursor-pointer group hover:bg-surface-variant/30 transition-colors">
+                <input
+                  type="radio"
+                  name="chart_interval"
+                  value={iv}
+                  checked={chartInterval === iv}
+                  onChange={(e) => setChartInterval(e.target.value)}
+                  className="w-5 h-5 text-primary bg-transparent border-outline-variant focus:ring-0 focus:ring-offset-0"
+                />
+                <span className="font-medium text-on-surface uppercase">{iv}</span>
+              </label>
+            ))}
           </div>
         </div>
       </div>
