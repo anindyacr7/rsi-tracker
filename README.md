@@ -1,32 +1,50 @@
-# React + TypeScript + Vite
+# Crypto RSI Tracker
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+This project is a Crypto RSI (Relative Strength Index) tracker built with a React frontend and a Cloudflare Worker backend. It scans the top 150 cryptocurrency pairs on Binance and sends alerts via Telegram and Web Push when the 15-minute RSI exceeds 75.
 
-Currently, two official plugins are available:
+## Architecture Overview
+See [ARCHITECTURE.md](ARCHITECTURE.md) for a detailed Low-Level Design (LLD).
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Handy Endpoints
 
-## React Compiler
+The backend API is deployed at: `https://crypto-rsi-worker.foxledger.workers.dev`
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+### 1. Test Notification
+Use this endpoint to verify that Telegram and Web Push notifications are properly configured.
+```bash
+curl https://crypto-rsi-worker.foxledger.workers.dev/api/test-notification
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+### 2. Health Check
+Basic health check to ensure the worker is responsive.
+```bash
+curl https://crypto-rsi-worker.foxledger.workers.dev/api/health
+```
+
+### 3. Fetch Alerts
+Retrieves recent RSI alerts from the database.
+```bash
+curl https://crypto-rsi-worker.foxledger.workers.dev/api/alerts
+```
+
+### 4. Fetch Market Scan
+Returns the current market cap data and rankings.
+```bash
+curl https://crypto-rsi-worker.foxledger.workers.dev/api/scan
+```
+
+## Setup & Deployment
+
+### Frontend (React/Vite)
+1. `cd frontend`
+2. `npm install`
+3. `npm run dev`
+
+### Backend (Cloudflare Worker)
+1. `cd worker`
+2. `npm install`
+3. Configure your secrets (e.g., Telegram Bot Token) using `npx wrangler secret put <SECRET_NAME>`.
+4. Deploy the worker:
+```bash
+npx wrangler deploy
+```

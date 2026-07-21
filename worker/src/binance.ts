@@ -6,10 +6,7 @@ export interface Ticker24h {
 }
 
 export async function fetchValidUSDTPairs(): Promise<Ticker24h[]> {
-  const bases = [
-    'https://data-api.binance.vision'
-  ];
-  const base = bases[Math.floor(Math.random() * bases.length)];
+  const base = 'https://data-api.binance.vision';
 
   const res = await fetch(`${base}/api/v3/ticker/24hr`);
 
@@ -45,10 +42,7 @@ export async function fetchKlines(
   interval: string,
   limit: number = 150
 ): Promise<number[]> {
-  const bases = [
-    'https://data-api.binance.vision'
-  ];
-  const base = bases[Math.floor(Math.random() * bases.length)];
+  const base = 'https://data-api.binance.vision';
   const url = `${base}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
 
   const res = await fetch(url);

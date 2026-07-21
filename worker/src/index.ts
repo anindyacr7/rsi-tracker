@@ -51,6 +51,16 @@ export default {
       return jsonResponse({ status: 'ok', timestamp: new Date().toISOString() });
     }
 
+    if (url.pathname === '/api/test-notification' && request.method === 'GET') {
+      try {
+        await sendTelegramMessage(env, `🟢 *Test Notification* 🟢\nServer is UP and running!`);
+        await sendWebPush(env, `🟢 Server is UP and running!`);
+        return jsonResponse({ status: 'ok', message: 'Test notification sent successfully.' });
+      } catch (err: any) {
+        return jsonResponse({ status: 'error', message: err.message }, 500);
+      }
+    }
+
     return jsonResponse({ error: 'Not Found' }, 404);
   },
 
@@ -70,7 +80,7 @@ async function handleCron(env: Env) {
       return rank && rank <= 150;
     });
 
-    const CHUNK_SIZE = 50;
+    const CHUNK_SIZE = 5;
     for (let i = 0; i < tickers.length; i += CHUNK_SIZE) {
       const chunk = tickers.slice(i, i + CHUNK_SIZE);
       const promises = chunk.map(async (ticker) => {
@@ -84,6 +94,10 @@ async function handleCron(env: Env) {
         }
       });
       await Promise.all(promises);
+      
+      if (i + CHUNK_SIZE < tickers.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
     }
   } catch (err) {
     console.error('Cron error:', err);
