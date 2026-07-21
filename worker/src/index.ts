@@ -60,8 +60,8 @@ export default {
           rsiText = rsi !== null ? rsi.toFixed(2) : 'N/A';
         }
         
-        const text = `🟢 *Test Notification* 🟢\nServer is UP!\nBTC RSI (15m): ${rsiText}`;
-        const webPushText = `🟢 Server is UP! BTC RSI (15m): ${rsiText}`;
+        const text = `🚨 *TEST RSI ALERT* 🚨\nToken: #BTCUSDT\nRSI (15m): ${rsiText}\nRank: 1`;
+        const webPushText = `[TEST] Token: #BTCUSDT\nRSI (15m): ${rsiText}\nRank: 1`;
         
         await sendTelegramMessage(env, text);
         await sendWebPush(env, webPushText);
