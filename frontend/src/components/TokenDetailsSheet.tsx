@@ -4,6 +4,7 @@ import { createChart, ColorType, CandlestickSeries } from 'lightweight-charts';
 import type { IChartApi } from 'lightweight-charts';
 import { fetchKlinesOHLC, type KlineOHLC } from '../utils/binance';
 import type { ScanResult } from '../types';
+import { getRsiClass } from '../utils/formatters';
 
 interface TokenDetailsSheetProps {
   token: ScanResult | null;
@@ -191,39 +192,19 @@ export function TokenDetailsSheet({ token, onClose, tokenRsi }: TokenDetailsShee
                 <span className="material-symbols-outlined text-outline text-[18px]">info</span>
               </div>
               
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-on-surface-variant font-medium font-data-tabular">15m</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[16px] text-on-surface font-data-tabular font-bold">
-                      {token.rsi15m !== null && token.rsi15m !== undefined ? token.rsi15m.toFixed(1) : '--'}
-                    </span>
-                    {token.rsi15m !== null && token.rsi15m !== undefined && (
-                      <span className={clsx("px-1.5 py-[1px] rounded text-[9px] font-label-caps font-bold",
-                        token.rsi15m >= 75 ? "bg-error/20 text-error" :
-                          token.rsi15m <= 30 ? "bg-secondary/20 text-secondary" :
-                            "bg-primary/20 text-primary")}>
-                        {token.rsi15m >= 75 ? 'OB' : token.rsi15m <= 30 ? 'OS' : 'N'}
-                      </span>
-                    )}
-                  </div>
+                  <span className="text-[12px] text-on-surface-variant font-medium font-data-tabular">15m</span>
+                  <span className={clsx("inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[13px] font-bold font-data-tabular", getRsiClass(token.rsi15m))}>
+                    {token.rsi15m !== null && token.rsi15m !== undefined ? token.rsi15m.toFixed(1) : '--'}
+                  </span>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-on-surface-variant font-medium font-data-tabular">4h</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[16px] text-on-surface font-data-tabular font-bold">
-                      {token.rsi4h !== null && token.rsi4h !== undefined ? token.rsi4h.toFixed(1) : '--'}
-                    </span>
-                    {token.rsi4h !== null && token.rsi4h !== undefined && (
-                      <span className={clsx("px-1.5 py-[1px] rounded text-[9px] font-label-caps font-bold",
-                        token.rsi4h >= 75 ? "bg-error/20 text-error" :
-                          token.rsi4h <= 30 ? "bg-secondary/20 text-secondary" :
-                            "bg-primary/20 text-primary")}>
-                        {token.rsi4h >= 75 ? 'OB' : token.rsi4h <= 30 ? 'OS' : 'N'}
-                      </span>
-                    )}
-                  </div>
+                  <span className="text-[12px] text-on-surface-variant font-medium font-data-tabular">4h</span>
+                  <span className={clsx("inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[13px] font-bold font-data-tabular", getRsiClass(token.rsi4h))}>
+                    {token.rsi4h !== null && token.rsi4h !== undefined ? token.rsi4h.toFixed(1) : '--'}
+                  </span>
                 </div>
               </div>
             </div>

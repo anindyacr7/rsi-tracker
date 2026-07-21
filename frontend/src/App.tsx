@@ -230,7 +230,12 @@ export default function App() {
   return (
     <div className="font-body-base text-body-base bg-background min-h-screen flex flex-col overflow-hidden pb-[64px] md:pb-0 pt-[64px] text-on-background">
 
-      <TopAppBar loading={loading} onRefresh={fetchData} onSettingsClick={() => setActiveTab('settings')} />
+      <TopAppBar 
+        loading={loading} 
+        onRefresh={fetchData} 
+        onSettingsClick={() => setActiveTab('settings')} 
+        onLogoClick={() => setActiveTab('rsi')}
+      />
 
       {/* Main Content Area */}
       <main className="flex-1 overflow-auto w-full relative">
