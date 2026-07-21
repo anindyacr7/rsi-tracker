@@ -205,7 +205,7 @@ export default function App() {
   };
 
   const displayedData = useMemo(() => {
-    return processData(data, activeTab);
+    return processData(data, activeTab as any);
   }, [data, activeTab, rsiSort, moversSort]);
 
   // Sorting handlers
