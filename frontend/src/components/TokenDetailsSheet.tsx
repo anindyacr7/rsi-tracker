@@ -185,7 +185,7 @@ export function TokenDetailsSheet({ token, onClose, tokenRsi }: TokenDetailsShee
             {/* RSI Card */}
             <div className="bg-[#1e1e22]/40 backdrop-blur-md border border-white/10 rounded-xl p-4 flex flex-col justify-between h-32">
               <div className="flex justify-between items-start">
-                <span className="font-label-caps text-[12px] text-outline font-semibold">RSI (14)</span>
+                <span className="font-label-caps text-[12px] text-outline font-semibold">RSI (4h)</span>
                 <span className="material-symbols-outlined text-outline text-[18px]">info</span>
               </div>
               <div className="flex items-center gap-2">
