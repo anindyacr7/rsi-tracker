@@ -251,7 +251,17 @@ export default function App() {
 
           {activeTab === 'alerts' ? (
             <AlertsTable data={alertsData} loading={alertsLoading} onRowClick={(symbol) => {
-              const result = data.find(d => d.symbol === symbol) || { symbol, lastPrice: '0', priceChangePercent: '0', quoteVolume: '0', rsi14: 0, percentMove24h: 0 } as ScanResult;
+              const result = data.find(d => d.symbol === symbol) || { 
+                symbol, 
+                price: 0, 
+                percentMove24h: 0, 
+                volume24h: 0, 
+                mcap: null,
+                cmcRank: null,
+                rsi15m: null,
+                rsi4h: null,
+                rsi24h: null 
+              } as ScanResult;
               setSelectedToken(result);
             }} />
           ) : activeTab === 'settings' ? (
@@ -276,7 +286,7 @@ export default function App() {
       {selectedToken && (
         <TokenDetailsSheet
           token={selectedToken}
-          tokenRsi={selectedToken.rsi14}
+          tokenRsi={selectedToken.rsi4h || selectedToken.rsi15m || undefined}
           onClose={() => setSelectedToken(null)}
         />
       )}

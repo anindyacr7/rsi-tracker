@@ -2,10 +2,11 @@ import clsx from 'clsx';
 import { useEffect, useRef, useState } from 'react';
 import { createChart, ColorType, CandlestickSeries } from 'lightweight-charts';
 import type { IChartApi } from 'lightweight-charts';
-import { fetchKlinesOHLC, type KlineOHLC, type Ticker24h } from '../utils/binance';
+import { fetchKlinesOHLC, type KlineOHLC } from '../utils/binance';
+import type { ScanResult } from '../types';
 
 interface TokenDetailsSheetProps {
-  token: Ticker24h | null;
+  token: ScanResult | null;
   onClose: () => void;
   tokenRsi?: number;
 }
@@ -108,13 +109,13 @@ export function TokenDetailsSheet({ token, onClose, tokenRsi }: TokenDetailsShee
 
   if (!token) return null;
 
-  const price = parseFloat(token.lastPrice);
-  const change = parseFloat(token.priceChangePercent);
+  const price = token.price || 0;
+  const change = token.percentMove24h || 0;
   const isPositive = change >= 0;
   const baseAsset = token.symbol.replace('USDT', '');
 
   // Estimate some stats based on available data
-  const vol = parseFloat(token.quoteVolume);
+  const vol = token.volume24h || 0;
   const volFormatted = vol > 1e9 ? `$${(vol / 1e9).toFixed(2)}B` : `$${(vol / 1e6).toFixed(2)}M`;
 
   return (
