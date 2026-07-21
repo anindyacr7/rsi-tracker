@@ -37,11 +37,34 @@ export async function fetchValidUSDTPairs(): Promise<Ticker24h[]> {
     }
   }
 
-  if (!res || !res.ok) {
-    throw new Error(`Binance ticker API error: ${res ? res.status : 'Network Error'}`);
-  }
+  let tickers: Ticker24h[] = [];
 
-  const tickers: Ticker24h[] = await res.json() as Ticker24h[];
+  if (!res || !res.ok) {
+    // Fallback to Bybit if Binance completely blocks us (403 from Cloudflare IPs)
+    try {
+      res = await fetch('https://api.bybit.com/v5/market/tickers?category=linear');
+      if (res.ok) {
+        const json: any = await res.json();
+        if (json.retCode === 0 && json.result && json.result.list) {
+          tickers = json.result.list.map((t: any) => ({
+            symbol: t.symbol,
+            lastPrice: t.lastPrice,
+            // Bybit price24hPcnt is decimal (e.g. 0.07 for 7%), Binance is percentage string
+            priceChangePercent: (parseFloat(t.price24hPcnt) * 100).toString(),
+            quoteVolume: t.turnover24h
+          }));
+        }
+      }
+    } catch (e) {
+      throw new Error(`Binance & Bybit ticker API error: ${res ? res.status : 'Network Error'}`);
+    }
+    
+    if (tickers.length === 0) {
+      throw new Error(`Binance & Bybit ticker API error: ${res ? res.status : 'Network Error'}`);
+    }
+  } else {
+    tickers = await res.json() as Ticker24h[];
+  }
 
   // Filter USDT pairs, exclude leveraged/down tokens and stablecoins
   const usdtPairs = tickers.filter((t) => {
@@ -102,9 +125,27 @@ export async function fetchKlines(
   }
 
   if (!res || !res.ok) {
-    throw new Error(`Kline fetch failed for ${symbol} ${interval}. Last Error: ${lastError}`);
+    // Fallback to Bybit
+    try {
+      // Bybit interval is '15' instead of '15m'
+      const bybitInterval = interval.replace('m', '');
+      res = await fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${symbol}&interval=${bybitInterval}&limit=${limit}`);
+      if (res.ok) {
+        const json: any = await res.json();
+        if (json.retCode === 0 && json.result && json.result.list) {
+          const data = json.result.list;
+          // Bybit returns newest to oldest. Reverse to get oldest to newest (like Binance)
+          return data.map((k: any) => parseFloat(k[4])).reverse();
+        }
+      }
+      lastError = `Bybit: ${res.status}`;
+    } catch (e: any) {
+      lastError = `Bybit network error: ${e.message}`;
+    }
+  } else {
+    const data: any[][] = await res.json() as any[][];
+    return data.map((k) => parseFloat(k[4]));
   }
 
-  const data: any[][] = await res.json() as any[][];
-  return data.map((k) => parseFloat(k[4]));
+  throw new Error(`Kline fetch failed for ${symbol} ${interval}. Last Error: ${lastError}`);
 }
