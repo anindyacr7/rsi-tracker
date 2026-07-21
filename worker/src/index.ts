@@ -84,10 +84,10 @@ async function handleCron(env: Env) {
     const { mcapMap } = await fetchMarketCaps(1, env.DB); // Use CMC key 1 and pass D1 DB for caching
     const allTickers = await fetchValidUSDTPairs();
 
-    // Filter tickers by CMC Top 150
+    // Filter tickers by CMC Top 250
     const tickers = allTickers.filter(t => {
       const rank = mcapMap.get(t.symbol.replace('USDT', ''))?.rank;
-      return rank && rank <= 150;
+      return rank && rank <= 250;
     });
 
     const CHUNK_SIZE = 5;

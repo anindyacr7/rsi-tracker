@@ -42,13 +42,32 @@ export async function fetchKlines(
   interval: string,
   limit: number = 150
 ): Promise<number[]> {
-  const base = 'https://data-api.binance.vision';
-  const url = `${base}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+  const bases = [
+    'https://api.binance.com',
+    'https://api1.binance.com',
+    'https://api2.binance.com',
+    'https://api3.binance.com',
+    'https://api4.binance.com'
+  ];
+  
+  let res;
+  for (const base of bases) {
+    try {
+      res = await fetch(`${base}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
+      if (res.ok) break;
+    } catch (e) {
+      continue;
+    }
+  }
 
-  const res = await fetch(url);
+  if (!res || !res.ok) {
+    try {
+      res = await fetch(`https://data-api.binance.vision/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
+    } catch (e) {}
+  }
 
-  if (!res.ok) {
-    console.error(`Kline fetch failed for ${symbol} ${interval}: ${res.status}`);
+  if (!res || !res.ok) {
+    console.error(`Kline fetch failed for ${symbol} ${interval}`);
     return [];
   }
 

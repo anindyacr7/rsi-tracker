@@ -58,7 +58,7 @@ export async function fetchMarketCaps(keyIndex?: 0 | 1 | -1, db?: any): Promise<
   const keysToTry = keyIndex === -1 ? [] : (keyIndex !== undefined ? [CMC_KEYS[keyIndex]] : CMC_KEYS);
   for (const key of keysToTry) {
     try {
-      const url = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest?limit=200';
+      const url = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest?limit=300';
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 6000);
       const res = await fetch(url, {
@@ -114,7 +114,7 @@ export async function fetchMarketCaps(keyIndex?: 0 | 1 | -1, db?: any): Promise<
 
   // 2. Fallback to Coinlore if both keys fail or are exhausted
   try {
-    const pages = [0, 100]; // covers top 200 to safely extract 130
+    const pages = [0, 100, 200]; // covers top 300
 
     await Promise.all(pages.map(async (start) => {
       const url = `https://api.coinlore.net/api/tickers/?start=${start}&limit=100`;
