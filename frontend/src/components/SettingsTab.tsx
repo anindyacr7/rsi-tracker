@@ -206,7 +206,7 @@ export function SettingsTab() {
         body: JSON.stringify({ key: 'rsi_threshold', value: val })
       });
       if (res.ok) {
-        // Optional: show a small success indication
+        // success
       }
     } catch (err) {
       console.error("Failed to save threshold", err);
@@ -217,21 +217,22 @@ export function SettingsTab() {
   };
 
   return (
-    <div className="w-full flex flex-col gap-6 p-1 pb-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="space-y-6">
-        {/* Notifications Section */}
-        <section className="space-y-4">
-          <h3 className="text-label-lg font-medium text-primary">Notifications</h3>
+    <div className="w-full max-w-lg mx-auto pb-32 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
+      
+      {/* Notifications Card */}
+      <div className="mb-6">
+        <h3 className="text-primary font-semibold mb-4 px-1">Notifications</h3>
+        <div className="bg-[#1e1e22]/40 backdrop-blur-md border border-white/10 rounded-xl p-4 space-y-6">
           
-          <div className="flex items-center justify-between p-4 rounded-xl bg-surface-container-highest/30 border border-outline-variant/20">
-            <div className="flex items-center gap-3">
-              <span className={clsx("material-symbols-outlined", isSubscribed ? "text-secondary" : "text-on-surface-variant")} 
-                    style={isSubscribed ? { fontVariationSettings: "'FILL' 1" } : {}}>
+          {/* Push Toggle */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-start gap-4">
+              <span className={clsx("material-symbols-outlined mt-0.5", isSubscribed ? "text-secondary" : "text-on-surface-variant")} style={isSubscribed ? { fontVariationSettings: "'FILL' 1" } : {}}>
                 notifications
               </span>
               <div>
-                <p className="text-body-lg font-medium text-on-surface">Push Notifications</p>
-                <p className="text-body-sm text-on-surface-variant">
+                <p className="font-medium text-on-surface">Push Notifications</p>
+                <p className="text-sm text-on-surface-variant">
                   {isSubscribed ? 'Subscribed' : pushStatus === 'denied' ? 'Blocked' : 'Disabled'}
                 </p>
               </div>
@@ -239,162 +240,167 @@ export function SettingsTab() {
             <button
               onClick={isSubscribed ? handleUnsubscribe : handleSubscribe}
               disabled={pushStatus === 'denied'}
-              className={clsx(
-                "px-4 py-2 rounded-full font-medium text-sm transition-colors",
-                isSubscribed 
-                  ? "bg-error/20 text-error hover:bg-error/30 active:scale-95" 
-                  : pushStatus === 'denied'
-                  ? "bg-error/20 text-error cursor-not-allowed"
-                  : "bg-primary text-on-primary hover:bg-primary/90 active:scale-95"
-              )}
+              className="bg-[#2d3142] text-on-surface px-6 py-2 rounded-xl text-sm font-semibold hover:bg-surface-bright transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubscribed ? 'Unsubscribe' : pushStatus === 'denied' ? 'Blocked' : 'Enable'}
+              {isSubscribed ? 'Disable' : pushStatus === 'denied' ? 'Blocked' : 'Enable'}
             </button>
           </div>
 
-          <div className="flex items-center justify-between p-4 rounded-xl bg-surface-container-highest/30 border border-outline-variant/20">
-            <div className="flex flex-col">
-              <span className="text-body-md font-medium text-on-surface">Global RSI Threshold</span>
-              <span className="text-body-sm text-on-surface-variant">Minimum RSI for alerts</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min="50"
-                max="95"
-                value={rsiThreshold}
-                onChange={(e) => setRsiThreshold(parseInt(e.target.value) || 75)}
-                className="w-16 p-2 text-center rounded-lg bg-surface-container border border-outline-variant text-on-surface focus:outline-none focus:border-primary"
-              />
-              <button
-                onClick={() => handleSaveThreshold(rsiThreshold)}
-                disabled={isSavingThreshold}
-                className="flex items-center justify-center p-2 rounded-lg bg-primary text-on-primary hover:bg-primary/90 disabled:opacity-50 transition-colors"
-              >
-                <span className={clsx("material-symbols-outlined text-[20px]", isSavingThreshold && "animate-spin")}>
-                  {isSavingThreshold ? 'sync' : 'save'}
-                </span>
-              </button>
+          {/* Global RSI */}
+          <div className="pt-2">
+            <p className="font-medium text-on-surface mb-1">Global RSI Threshold</p>
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-sm text-on-surface-variant">Minimum RSI for alerts</p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="50"
+                  max="95"
+                  value={rsiThreshold}
+                  onChange={(e) => setRsiThreshold(parseInt(e.target.value) || 75)}
+                  className="w-16 h-12 bg-surface-container-lowest border border-outline-variant rounded-lg text-center font-data-tabular focus:ring-1 focus:ring-primary focus:border-primary text-on-surface"
+                />
+                <button
+                  onClick={() => handleSaveThreshold(rsiThreshold)}
+                  disabled={isSavingThreshold}
+                  className="w-12 h-12 bg-surface-container-highest border border-outline-variant rounded-lg flex items-center justify-center text-primary-fixed hover:bg-primary/20 transition-colors disabled:opacity-50"
+                >
+                  <span className={clsx("material-symbols-outlined", isSavingThreshold && "animate-spin")}>
+                    {isSavingThreshold ? 'sync' : 'save'}
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
+        </div>
+      </div>
 
-          <button
-            onClick={handleTestNotification}
-            disabled={testNotificationLoading}
-            className="w-full flex items-center justify-center gap-2 p-3 rounded-xl border border-outline-variant/30 text-on-surface hover:bg-surface-container-highest/50 transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <span className={clsx("material-symbols-outlined", testNotificationLoading && "animate-spin")}>
-              {testNotificationLoading ? 'sync' : 'send'}
-            </span>
-            Send Test Notification (BTC RSI)
-          </button>
+      {/* Action Buttons */}
+      <div className="space-y-3 mb-8">
+        <button
+          onClick={handleTestNotification}
+          disabled={testNotificationLoading}
+          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border border-outline-variant hover:bg-surface-variant transition-colors text-on-surface font-medium disabled:opacity-50"
+        >
+          <span className={clsx("material-symbols-outlined text-xl", testNotificationLoading ? "animate-spin" : "transform -rotate-45")}>
+            {testNotificationLoading ? 'sync' : 'send'}
+          </span>
+          Send Test Notification (BTC RSI)
+        </button>
 
-          <button
-            onClick={handleClearAlerts}
-            disabled={clearAlertsLoading}
-            className="w-full flex items-center justify-center gap-2 p-3 rounded-xl border border-error/30 text-error hover:bg-error/10 transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <span className={clsx("material-symbols-outlined", clearAlertsLoading && "animate-spin")}>
-              {clearAlertsLoading ? 'sync' : 'delete_sweep'}
-            </span>
-            Clear Alerts History
-          </button>
-          
-          <button
-            onClick={handleForceRun}
-            disabled={forceRunLoading}
-            className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-secondary text-on-secondary hover:bg-secondary/90 transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <span className={clsx("material-symbols-outlined", forceRunLoading && "animate-spin")}>
-              {forceRunLoading ? 'sync' : 'bolt'}
-            </span>
-            Force Run Scan Now
-          </button>
-        </section>
+        <button
+          onClick={handleClearAlerts}
+          disabled={clearAlertsLoading}
+          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border border-outline-variant hover:bg-surface-variant transition-colors text-on-surface font-medium disabled:opacity-50"
+        >
+          <span className={clsx("material-symbols-outlined text-xl", clearAlertsLoading && "animate-spin")}>
+            {clearAlertsLoading ? 'sync' : 'delete'}
+          </span>
+          Clear Alerts History
+        </button>
 
-        {/* API Provider Section */}
-        <section className="space-y-4">
-          <h3 className="text-label-lg font-medium text-primary">API Provider</h3>
-          
-          <div className="flex flex-col gap-2">
-            <label className="flex items-center gap-3 p-3 rounded-xl border border-outline-variant/30 cursor-pointer hover:bg-surface-container-highest/30 transition-colors">
+        <button
+          onClick={handleForceRun}
+          disabled={forceRunLoading}
+          className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-secondary text-on-secondary-container font-bold hover:brightness-110 active:scale-[0.99] transition-all disabled:opacity-50"
+        >
+          <span className={clsx("material-symbols-outlined", forceRunLoading && "animate-spin")}>
+            {forceRunLoading ? 'sync' : 'bolt'}
+          </span>
+          Force Run Scan Now
+        </button>
+      </div>
+
+      {/* API Providers */}
+      <div className="space-y-8">
+        <div>
+          <h3 className="text-primary font-semibold mb-4 px-1">API Provider</h3>
+          <div className="space-y-2">
+            <label className="flex items-center gap-4 bg-[#1e1e22]/40 backdrop-blur-md p-4 rounded-xl border border-outline-variant cursor-pointer group hover:bg-surface-variant/30 transition-colors">
               <input
                 type="radio"
-                name="apiProvider"
+                name="api_provider"
                 value="binanceApi"
                 checked={apiProvider === 'binanceApi'}
                 onChange={(e) => setApiProvider(e.target.value)}
-                className="w-4 h-4 text-primary bg-surface-container border-outline-variant focus:ring-primary focus:ring-2"
+                className="w-5 h-5 text-primary bg-transparent border-outline-variant focus:ring-0 focus:ring-offset-0"
               />
-              <div className="flex flex-col">
-                <span className="text-body-md font-medium text-on-surface">Binance API</span>
-                <span className="text-body-sm text-on-surface-variant">Default endpoints (api.binance.com)</span>
+              <div>
+                <p className="font-medium text-on-surface">Binance API</p>
+                <p className="text-sm text-on-surface-variant">Default endpoints (api.binance.com)</p>
               </div>
             </label>
-
-            <label className="flex items-center gap-3 p-3 rounded-xl border border-outline-variant/30 cursor-pointer hover:bg-surface-container-highest/30 transition-colors">
+            <label className="flex items-center gap-4 bg-[#1e1e22]/40 backdrop-blur-md p-4 rounded-xl border border-outline-variant cursor-pointer group hover:bg-surface-variant/30 transition-colors">
               <input
                 type="radio"
-                name="apiProvider"
+                name="api_provider"
                 value="binanceData"
                 checked={apiProvider === 'binanceData'}
                 onChange={(e) => setApiProvider(e.target.value)}
-                className="w-4 h-4 text-primary bg-surface-container border-outline-variant focus:ring-primary focus:ring-2"
+                className="w-5 h-5 text-primary bg-transparent border-outline-variant focus:ring-0 focus:ring-offset-0"
               />
-              <div className="flex flex-col">
-                <span className="text-body-md font-medium text-on-surface">Binance Data API</span>
-                <span className="text-body-sm text-on-surface-variant">Fallback endpoints (data-api.binance.vision)</span>
+              <div>
+                <p className="font-medium text-on-surface">Binance Data API</p>
+                <p className="text-sm text-on-surface-variant">Fallback endpoints (data-api.binance.vision)</p>
               </div>
             </label>
           </div>
-        </section>
+        </div>
 
-        {/* Market Cap Provider Section */}
-        <section className="space-y-4">
-          <h3 className="text-label-lg font-medium text-primary">Market Cap Provider</h3>
-          
-          <div className="flex flex-col gap-2">
-            <label className="flex items-center gap-3 p-3 rounded-xl border border-outline-variant/30 cursor-pointer hover:bg-surface-container-highest/30 transition-colors">
+        <div>
+          <h3 className="text-primary font-semibold mb-4 px-1">Market Cap Provider</h3>
+          <div className="space-y-2">
+            <label className="flex items-center gap-4 bg-[#1e1e22]/40 backdrop-blur-md p-4 rounded-xl border border-outline-variant cursor-pointer group hover:bg-surface-variant/30 transition-colors">
               <input
                 type="radio"
-                name="mcapProvider"
+                name="mcap_provider"
                 value="cmc"
                 checked={mcapProvider === 'cmc'}
                 onChange={(e) => setMcapProvider(e.target.value)}
-                className="w-4 h-4 text-primary bg-surface-container border-outline-variant focus:ring-primary focus:ring-2"
+                className="w-5 h-5 text-primary bg-transparent border-outline-variant focus:ring-0 focus:ring-offset-0"
               />
-              <div className="flex flex-col">
-                <span className="text-body-md font-medium text-on-surface">CoinMarketCap</span>
-                <span className="text-body-sm text-on-surface-variant">Default endpoints (pro-api.coinmarketcap.com)</span>
+              <div>
+                <p className="font-medium text-on-surface">CoinMarketCap</p>
+                <p className="text-sm text-on-surface-variant">Default endpoints (pro-api.coinmarketcap.com)</p>
               </div>
             </label>
-
-            <label className="flex items-center gap-3 p-3 rounded-xl border border-outline-variant/30 cursor-pointer hover:bg-surface-container-highest/30 transition-colors">
+            <label className="flex items-center gap-4 bg-[#1e1e22]/40 backdrop-blur-md p-4 rounded-xl border border-outline-variant cursor-pointer group hover:bg-surface-variant/30 transition-colors">
               <input
                 type="radio"
-                name="mcapProvider"
+                name="mcap_provider"
                 value="coinlore"
                 checked={mcapProvider === 'coinlore'}
                 onChange={(e) => setMcapProvider(e.target.value)}
-                className="w-4 h-4 text-primary bg-surface-container border-outline-variant focus:ring-primary focus:ring-2"
+                className="w-5 h-5 text-primary bg-transparent border-outline-variant focus:ring-0 focus:ring-offset-0"
               />
-              <div className="flex flex-col">
-                <span className="text-body-md font-medium text-on-surface">Coinlore</span>
-                <span className="text-body-sm text-on-surface-variant">Fallback endpoints (api.coinlore.net)</span>
+              <div>
+                <p className="font-medium text-on-surface">Coinlore</p>
+                <p className="text-sm text-on-surface-variant">Fallback endpoints (api.coinlore.net)</p>
               </div>
             </label>
           </div>
-          <p className="text-body-sm text-on-surface-variant">
-            Changes to the configuration require a refresh to take effect.
-          </p>
-        </section>
-
-        <div className="pt-4 border-t border-outline-variant/30 text-center">
-          <p className="text-body-sm text-on-surface-variant/70">
-            FoxLedger Screener • v1.0.1
-          </p>
         </div>
       </div>
+
+      {/* Footer Note */}
+      <div className="mt-8 mb-4 border-t border-outline-variant pt-6 text-center">
+        <p className="text-sm text-on-surface-variant mb-4">Changes to the configuration require a refresh to take effect.</p>
+        <p className="text-xs text-on-surface-variant font-medium tracking-wide uppercase opacity-60">FoxLedger Screener • v1.0.1</p>
+      </div>
+
+      {/* Visual Atmosphere */}
+      <div className="fixed inset-0 pointer-events-none z-[-1] opacity-30 overflow-hidden">
+        <div className="absolute top-[10%] right-[-10%] w-[60%] h-[60%] bg-primary/10 blur-[150px] rounded-full"></div>
+        <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-secondary/5 blur-[120px] rounded-full"></div>
+      </div>
+
+      <style>{`
+        input[type="radio"]:checked {
+            background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3ccircle cx='8' cy='8' r='3'/%3e%3c/svg%3e");
+            background-color: #3772ff;
+            border-color: #3772ff;
+        }
+      `}</style>
     </div>
   );
 }

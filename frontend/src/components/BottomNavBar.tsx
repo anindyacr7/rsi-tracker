@@ -46,19 +46,6 @@ export function BottomNavBar({ activeTab, onTabChange }: BottomNavBarProps) {
         <span className="material-symbols-outlined mb-1" style={activeTab === 'alerts' ? { fontVariationSettings: "'FILL' 1" } : {}}>notifications</span>
         <span className="font-label-caps text-label-caps">Alerts</span>
       </button>
-
-      <button
-        onClick={() => onTabChange('settings')}
-        className={clsx(
-          "flex flex-col items-center justify-center w-full h-full active:scale-90 transition-transform relative",
-          activeTab === 'settings'
-            ? "text-secondary dark:text-secondary-fixed-dim after:content-[''] after:absolute after:top-0 after:w-12 after:h-0.5 after:bg-secondary"
-            : "text-outline dark:text-outline hover:text-on-surface transition-colors"
-        )}
-      >
-        <span className="material-symbols-outlined mb-1" style={activeTab === 'settings' ? { fontVariationSettings: "'FILL' 1" } : {}}>settings</span>
-        <span className="font-label-caps text-label-caps">Settings</span>
-      </button>
     </nav>
   );
 }
