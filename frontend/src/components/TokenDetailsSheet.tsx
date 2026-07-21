@@ -10,9 +10,10 @@ interface TokenDetailsSheetProps {
   token: ScanResult | null;
   onClose: () => void;
   tokenRsi?: number;
+  volumeRank?: number | null;
 }
 
-export function TokenDetailsSheet({ token, onClose, tokenRsi }: TokenDetailsSheetProps) {
+export function TokenDetailsSheet({ token, onClose, tokenRsi, volumeRank }: TokenDetailsSheetProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const [interval, setInterval] = useState<'5m' | '15m' | '1h' | '4h' | '1d'>(() => {
@@ -117,10 +118,6 @@ export function TokenDetailsSheet({ token, onClose, tokenRsi }: TokenDetailsShee
   const isPositive = change >= 0;
   const baseAsset = token.symbol.replace('USDT', '');
 
-  // Estimate some stats based on available data
-  const vol = token.volume24h || 0;
-  const volFormatted = vol > 1e9 ? `$${(vol / 1e9).toFixed(2)}B` : `$${(vol / 1e6).toFixed(2)}M`;
-
   return (
     <div className="fixed inset-0 z-[100] bottom-sheet-overlay transition-opacity duration-300">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
@@ -209,13 +206,28 @@ export function TokenDetailsSheet({ token, onClose, tokenRsi }: TokenDetailsShee
               </div>
             </div>
 
-            {/* Volume Card */}
+            {/* Ranks Card */}
             <div className="bg-[#1e1e22]/40 backdrop-blur-md border border-white/10 rounded-xl p-4 flex flex-col justify-between h-32">
-              <div className="flex justify-between items-start">
-                <span className="font-label-caps text-[12px] text-outline font-semibold">24H VOL</span>
-                <span className="material-symbols-outlined text-outline text-[18px]">equalizer</span>
+              <div className="flex justify-between items-start mb-2">
+                <span className="font-label-caps text-[12px] text-outline font-semibold uppercase">Ranks</span>
+                <span className="material-symbols-outlined text-outline text-[18px]">leaderboard</span>
               </div>
-              <span className="font-headline-md text-[24px] text-on-surface font-data-tabular font-bold">{volFormatted}</span>
+              
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] text-on-surface-variant font-medium font-data-tabular">MCAP</span>
+                  <span className="text-[15px] text-on-surface font-bold font-data-tabular">
+                    {token.cmcRank ? `#${token.cmcRank}` : '--'}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] text-on-surface-variant font-medium font-data-tabular">24H VOL</span>
+                  <span className="text-[15px] text-on-surface font-bold font-data-tabular">
+                    {volumeRank ? `#${volumeRank}` : '--'}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 

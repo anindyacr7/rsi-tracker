@@ -291,7 +291,7 @@ export default function App() {
       {selectedToken && (
         <TokenDetailsSheet
           token={selectedToken}
-          tokenRsi={selectedToken.rsi4h || selectedToken.rsi15m || undefined}
+          volumeRank={data ? [...data].sort((a, b) => b.volume24h - a.volume24h).findIndex(t => t.symbol === selectedToken.symbol) + 1 : null}
           onClose={() => setSelectedToken(null)}
         />
       )}
