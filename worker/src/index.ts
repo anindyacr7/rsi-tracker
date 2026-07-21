@@ -16,12 +16,12 @@ export interface Env {
 
 const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: any): Promise<Response> {
     const url = new URL(request.url);
 
     if (request.method === 'OPTIONS') {
@@ -38,6 +38,11 @@ export default {
 
     if (url.pathname === '/api/scan' && request.method === 'GET') {
       return handleScan(request);
+    }
+    
+    if (url.pathname === '/api/force-run' && request.method === 'POST') {
+      ctx.waitUntil(handleCron(env));
+      return jsonResponse({ status: 'ok', message: 'Cron job manually triggered in the background' });
     }
     
     if (url.pathname === '/api/alerts') {

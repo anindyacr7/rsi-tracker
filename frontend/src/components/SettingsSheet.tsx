@@ -21,6 +21,7 @@ export function SettingsSheet({ isOpen, onClose, pushStatus, isSubscribed, onSub
   
   const [testNotificationLoading, setTestNotificationLoading] = useState(false);
   const [clearAlertsLoading, setClearAlertsLoading] = useState(false);
+  const [forceRunLoading, setForceRunLoading] = useState(false);
   const [rsiThreshold, setRsiThreshold] = useState(75);
   const [isSavingThreshold, setIsSavingThreshold] = useState(false);
 
@@ -85,6 +86,23 @@ export function SettingsSheet({ isOpen, onClose, pushStatus, isSubscribed, onSub
       alert('Error clearing alerts data');
     } finally {
       setClearAlertsLoading(false);
+    }
+  };
+
+  const handleForceRun = async () => {
+    try {
+      setForceRunLoading(true);
+      const apiUrl = import.meta.env.VITE_API_URL || '/api/scan';
+      const forceUrl = apiUrl.replace('/scan', '/force-run');
+      
+      const res = await fetch(forceUrl, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to force run cron');
+      alert('Cron job successfully triggered! Check your notifications in a few moments.');
+    } catch (err: any) {
+      console.error(err);
+      alert('Error triggering cron job');
+    } finally {
+      setForceRunLoading(false);
     }
   };
 
@@ -214,6 +232,17 @@ export function SettingsSheet({ isOpen, onClose, pushStatus, isSubscribed, onSub
                 {clearAlertsLoading ? 'sync' : 'delete_sweep'}
               </span>
               Clear Alerts History
+            </button>
+            
+            <button
+              onClick={handleForceRun}
+              disabled={forceRunLoading}
+              className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-secondary text-on-secondary hover:bg-secondary/90 transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span className={clsx("material-symbols-outlined", forceRunLoading && "animate-spin")}>
+                {forceRunLoading ? 'sync' : 'bolt'}
+              </span>
+              Force Run Scan Now
             </button>
           </section>
 
