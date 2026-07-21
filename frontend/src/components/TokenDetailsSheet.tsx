@@ -122,14 +122,14 @@ export function TokenDetailsSheet({ token, onClose, tokenRsi }: TokenDetailsShee
     <div className="fixed inset-0 z-[100] bottom-sheet-overlay transition-opacity duration-300">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="bottom-sheet fixed bottom-0 left-0 right-0 max-w-[600px] mx-auto bg-surface-dim rounded-t-[2rem] h-[92vh] flex flex-col shadow-2xl border-t border-outline-variant/20 animate-in slide-in-from-bottom-full duration-300">
+      <div className="bottom-sheet fixed bottom-0 left-0 right-0 max-w-[600px] mx-auto bg-surface-dim rounded-t-[2rem] max-h-[92vh] flex flex-col shadow-2xl border-t border-outline-variant/20 animate-in slide-in-from-bottom-full duration-300">
 
         {/* Handle Indicator */}
         <div className="w-full flex justify-center py-4 cursor-pointer" onClick={onClose}>
           <div className="w-12 h-1.5 bg-outline-variant rounded-full opacity-40"></div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 pb-24 md:px-8 hide-scrollbar">
+        <div className="flex-1 overflow-y-auto px-4 pb-8 md:px-8 hide-scrollbar">
 
           {/* Token Header */}
           <div className="flex flex-col items-center text-center mt-4 mb-8">
