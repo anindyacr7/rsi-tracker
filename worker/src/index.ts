@@ -129,7 +129,7 @@ async function handleCron(env: Env) {
       return rank && rank <= 250;
     });
 
-    const CHUNK_SIZE = 5;
+    const CHUNK_SIZE = 25;
     for (let i = 0; i < tickers.length; i += CHUNK_SIZE) {
       const chunk = tickers.slice(i, i + CHUNK_SIZE);
       const promises = chunk.map(async (ticker) => {
