@@ -24,11 +24,33 @@ export function TokenDetailsSheet({ token, onClose, volumeRank }: TokenDetailsSh
   useEffect(() => {
     if (token) {
       document.body.style.overflow = 'hidden';
+      
+      if (!window.history.state || window.history.state.sheet !== 'token-details') {
+        window.history.pushState({ sheet: 'token-details' }, '');
+      }
+
+      const handlePopState = () => {
+        onClose();
+      };
+
+      window.addEventListener('popstate', handlePopState);
+
+      return () => { 
+        document.body.style.overflow = ''; 
+        window.removeEventListener('popstate', handlePopState);
+      };
     } else {
       document.body.style.overflow = '';
     }
-    return () => { document.body.style.overflow = ''; };
-  }, [token]);
+  }, [token, onClose]);
+
+  const handleClose = () => {
+    if (window.history.state && window.history.state.sheet === 'token-details') {
+      window.history.back();
+    } else {
+      onClose();
+    }
+  };
 
   useEffect(() => {
     if (!token) return;
@@ -120,12 +142,12 @@ export function TokenDetailsSheet({ token, onClose, volumeRank }: TokenDetailsSh
 
   return (
     <div className="fixed inset-0 z-[100] bottom-sheet-overlay transition-opacity duration-300">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={handleClose} />
 
       <div className="bottom-sheet fixed bottom-0 left-0 right-0 max-w-[600px] mx-auto bg-surface-dim rounded-t-[2rem] max-h-[92vh] flex flex-col shadow-2xl border-t border-outline-variant/20 animate-in slide-in-from-bottom-full duration-300">
 
         {/* Handle Indicator */}
-        <div className="w-full flex justify-center py-4 cursor-pointer" onClick={onClose}>
+        <div className="w-full flex justify-center py-4 cursor-pointer" onClick={handleClose}>
           <div className="w-12 h-1.5 bg-outline-variant rounded-full opacity-40"></div>
         </div>
 
