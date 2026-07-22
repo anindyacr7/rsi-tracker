@@ -1,5 +1,7 @@
 import clsx from 'clsx';
 import { useState, useEffect } from 'react';
+import type { Alert } from '../types';
+import { getRsiClass } from '../utils/formatters';
 
 const urlB64ToUint8Array = (base64String: string) => {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -35,6 +37,32 @@ export function SettingsTab() {
   
   const [pushStatus, setPushStatus] = useState<'default' | 'granted' | 'denied'>('default');
   const [isSubscribed, setIsSubscribed] = useState(false);
+
+  const [binData, setBinData] = useState<Alert[]>([]);
+  const [binLoading, setBinLoading] = useState(false);
+  const [selectedBinItems, setSelectedBinItems] = useState<number[]>([]);
+  const [binActionLoading, setBinActionLoading] = useState(false);
+
+  const fetchBin = async () => {
+    setBinLoading(true);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || '/api/scan';
+      const binUrl = apiUrl.replace('/scan', '/alerts/bin');
+      const res = await fetch(binUrl);
+      if (res.ok) {
+        const json = await res.json();
+        setBinData(json.data || []);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setBinLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBin();
+  }, []);
 
   useEffect(() => {
     if ('Notification' in window) {
@@ -224,6 +252,55 @@ export function SettingsTab() {
     }
   };
 
+  const handleRestore = async (ids: number[]) => {
+    if (!ids.length) return;
+    setBinActionLoading(true);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || '/api/scan';
+      const restoreUrl = apiUrl.replace('/scan', '/alerts/restore');
+      await fetch(restoreUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids })
+      });
+      setSelectedBinItems([]);
+      fetchBin();
+    } catch (err) {
+      console.error(err);
+      alert('Error restoring items');
+    } finally {
+      setBinActionLoading(false);
+    }
+  };
+
+  const handleEmptyBin = async (ids?: number[]) => {
+    const msg = ids ? `Permanently delete ${ids.length} selected items?` : 'Permanently empty the entire bin?';
+    if (!window.confirm(msg)) return;
+    setBinActionLoading(true);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || '/api/scan';
+      const binUrl = apiUrl.replace('/scan', '/alerts/bin');
+      await fetch(binUrl, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids })
+      });
+      setSelectedBinItems([]);
+      fetchBin();
+    } catch (err) {
+      console.error(err);
+      alert('Error deleting items');
+    } finally {
+      setBinActionLoading(false);
+    }
+  };
+
+  const toggleBinSelection = (id: number) => {
+    setSelectedBinItems(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
   return (
     <div className="w-full max-w-lg mx-auto pb-32 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
       
@@ -280,6 +357,94 @@ export function SettingsTab() {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Recycle Bin Card */}
+      <div className="mb-6">
+        <h3 className="text-primary font-semibold mb-4 px-1 flex items-center justify-between">
+          Recycle Bin
+          {binLoading && <span className="material-symbols-outlined animate-spin text-lg">refresh</span>}
+        </h3>
+        <div className="bg-[#1e1e22]/40 backdrop-blur-md border border-white/10 rounded-xl overflow-hidden flex flex-col">
+          {binData.length === 0 ? (
+            <div className="p-6 text-center text-on-surface-variant text-sm">
+              The bin is currently empty.
+            </div>
+          ) : (
+            <>
+              <div className="max-h-[300px] overflow-y-auto hide-scrollbar">
+                <table className="w-full text-left border-collapse">
+                  <thead className="sticky top-0 bg-[#1e1e22] z-10 border-b border-white/10 text-on-surface-variant text-xs uppercase font-label-caps">
+                    <tr>
+                      <th className="py-2 px-3 w-10">
+                        <input 
+                          type="checkbox"
+                          className="rounded border-outline-variant text-primary bg-transparent focus:ring-0 cursor-pointer"
+                          checked={selectedBinItems.length === binData.length && binData.length > 0}
+                          onChange={(e) => setSelectedBinItems(e.target.checked ? binData.map(d => d.id) : [])}
+                        />
+                      </th>
+                      <th className="py-2 px-2 font-semibold">Asset</th>
+                      <th className="py-2 px-2 text-center">RSI</th>
+                      <th className="py-2 px-2 text-right">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-sm text-on-surface divide-y divide-white/5">
+                    {binData.map(item => (
+                      <tr key={item.id} className="hover:bg-surface-variant/30 transition-colors">
+                        <td className="py-2 px-3">
+                          <input 
+                            type="checkbox"
+                            className="rounded border-outline-variant text-primary bg-transparent focus:ring-0 cursor-pointer"
+                            checked={selectedBinItems.includes(item.id)}
+                            onChange={() => toggleBinSelection(item.id)}
+                          />
+                        </td>
+                        <td className="py-2 px-2 font-semibold">{item.symbol.replace('USDT', '')}</td>
+                        <td className="py-2 px-2 text-center">
+                          <span className={clsx("inline-flex items-center justify-center px-1.5 py-0.5 rounded-full text-xs font-semibold", getRsiClass(item.max_rsi_value))}>
+                            {item.max_rsi_value.toFixed(1)}
+                          </span>
+                        </td>
+                        <td className="py-2 px-2 text-right text-xs text-on-surface-variant">
+                          {new Date(item.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="p-3 border-t border-white/10 flex items-center justify-between gap-2 bg-surface-container-lowest/30">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleRestore(selectedBinItems.length ? selectedBinItems : binData.map(d => d.id))}
+                    disabled={binActionLoading || (selectedBinItems.length === 0 && binData.length === 0)}
+                    className="px-3 py-1.5 bg-surface-variant hover:bg-surface-container-highest rounded-lg text-sm font-medium transition-colors disabled:opacity-50 text-on-surface"
+                  >
+                    {selectedBinItems.length ? `Restore (${selectedBinItems.length})` : 'Restore All'}
+                  </button>
+                  {selectedBinItems.length > 0 && (
+                    <button
+                      onClick={() => handleEmptyBin(selectedBinItems)}
+                      disabled={binActionLoading}
+                      className="px-3 py-1.5 border border-error/50 hover:bg-error/10 text-error rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                    >
+                      Delete ({selectedBinItems.length})
+                    </button>
+                  )}
+                </div>
+                
+                <button
+                  onClick={() => handleEmptyBin()}
+                  disabled={binActionLoading || binData.length === 0}
+                  className="px-3 py-1.5 bg-error/20 hover:bg-error/30 text-error rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  Empty Bin
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
 

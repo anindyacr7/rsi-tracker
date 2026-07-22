@@ -14,6 +14,7 @@ export type SortField = keyof ScanResult | null;
 export type SortDirection = 'asc' | 'desc';
 
 export interface Alert {
+  id: number;
   symbol: string;
   first_hit_time: number;
   first_rsi_value: number;
@@ -22,4 +23,5 @@ export interface Alert {
   mcap_rank: number | null;
   last_notified_at: number;
   created_at: number;
+  is_deleted: number;
 }

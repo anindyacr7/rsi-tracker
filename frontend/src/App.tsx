@@ -278,7 +278,7 @@ export default function App() {
           )}
 
           {activeTab === 'alerts' ? (
-            <AlertsTable data={alertsData} loading={alertsLoading} onRowClick={(symbol) => {
+            <AlertsTable data={alertsData} loading={alertsLoading} onRefresh={fetchAlerts} onRowClick={(symbol) => {
               const result = data.find(d => d.symbol === symbol) || { 
                 symbol, 
                 price: 0, 
