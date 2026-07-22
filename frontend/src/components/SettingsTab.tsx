@@ -186,11 +186,19 @@ export function SettingsTab() {
       const testUrl = apiUrl.replace('/scan', '/test-notification');
       
       const res = await fetch(testUrl);
-      if (!res.ok) throw new Error('Failed to send test notification');
+      if (!res.ok) {
+        let errMsg = 'Failed to send test notification';
+        try {
+          const errJson = await res.json();
+          if (errJson.message) errMsg += `: ${errJson.message}`;
+          else if (errJson.error) errMsg += `: ${errJson.error}`;
+        } catch (_) {}
+        throw new Error(errMsg);
+      }
       alert('Test notification sent successfully!');
     } catch (err: any) {
       console.error(err);
-      alert('Error sending test notification');
+      alert(err.message || 'Error sending test notification');
     } finally {
       setTestNotificationLoading(false);
     }

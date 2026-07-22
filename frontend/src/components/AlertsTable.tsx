@@ -41,17 +41,28 @@ export function AlertsTable({ data, loading, onRowClick, onRefresh }: AlertsTabl
     e.stopPropagation();
     if (!window.confirm(`Move ${ids.length} alert(s) to the bin?`)) return;
     try {
-      const apiUrl = (import.meta.env.VITE_API_URL || '/api/scan').replace('/scan', '/alerts/bin');
+      const scanApiUrl = import.meta.env.VITE_API_URL || '/api/scan';
+      const apiUrl = scanApiUrl.replace('/scan', '/alerts/bin');
       const res = await fetch(apiUrl, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids })
       });
-      if (!res.ok) throw new Error('Failed to move to bin');
+      if (!res.ok) {
+        let errMsg = 'Failed to move to bin';
+        try {
+          const errJson = await res.json();
+          if (errJson.message) errMsg += `: ${errJson.message}`;
+          else if (errJson.error) errMsg += `: ${errJson.error}`;
+        } catch (_) {
+          errMsg += ` (HTTP ${res.status})`;
+        }
+        throw new Error(errMsg);
+      }
       onRefresh?.();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to move to bin');
+      alert(err.message || 'Failed to move to bin');
     }
   };
 
