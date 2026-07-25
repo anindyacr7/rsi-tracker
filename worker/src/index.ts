@@ -47,17 +47,7 @@ export default {
     
     if (url.pathname === '/api/alerts') {
       if (request.method === 'GET') return handleAlerts(env);
-      if (request.method === 'DELETE') return handleClearAlerts(env); // This will clear all active alerts (optional, or we can remove it)
-    }
-
-    if (url.pathname === '/api/alerts/bin') {
-      if (request.method === 'GET') return handleGetBin(env);
-      if (request.method === 'PUT') return handleMoveToBin(request, env);
-      if (request.method === 'DELETE') return handleEmptyBin(request, env);
-    }
-
-    if (url.pathname === '/api/alerts/restore') {
-      if (request.method === 'PUT') return handleRestoreFromBin(request, env);
+      if (request.method === 'DELETE') return handleClearAlerts(request, env);
     }
 
     if (url.pathname === '/api/settings') {
@@ -172,11 +162,11 @@ async function processAlert(env: Env, ticker: any, rsi: number, rank?: number) {
   const now = Date.now();
   
   // Check existing record
-  const existing = await env.DB.prepare('SELECT * FROM rsi_alerts WHERE symbol = ? AND is_deleted = 0 ORDER BY created_at DESC LIMIT 1').bind(symbol).first();
+  const existing = await env.DB.prepare('SELECT * FROM rsi_alerts WHERE symbol = ? ORDER BY created_at DESC LIMIT 1').bind(symbol).first();
   
   const percentMove24h = parseFloat(ticker.priceChangePercent);
   
-  if (!existing || now - (existing.created_at as number) > 24 * 60 * 60 * 1000) {
+  if (!existing || now - (existing.created_at as number) > 48 * 60 * 60 * 1000) {
     // New or expired, insert new
     await env.DB.prepare(`
       INSERT INTO rsi_alerts (symbol, first_hit_time, first_rsi_value, max_rsi_value, percent_move_24h, mcap_rank, last_notified_at, created_at, is_deleted)
@@ -220,7 +210,7 @@ async function processAlert(env: Env, ticker: any, rsi: number, rank?: number) {
     }
   }
   
-  if (!existing || now - (existing.created_at as number) > 24 * 60 * 60 * 1000 || shouldUpdateMax || shouldNotify) {
+  if (!existing || now - (existing.created_at as number) > 48 * 60 * 60 * 1000 || shouldUpdateMax || shouldNotify) {
     const text = `Token: #${symbol}\nRSI (15m): ${rsi}\n24h Move: ${percentMove24h}%\nRank: ${rank || 'N/A'}`;
     await sendWebPush(env, text);
   }
@@ -309,7 +299,7 @@ async function handleScan(request: Request): Promise<Response> {
 
 async function handleAlerts(env: Env): Promise<Response> {
   try {
-    const result = await env.DB.prepare('SELECT * FROM rsi_alerts WHERE is_deleted = 0 ORDER BY created_at DESC').all();
+    const result = await env.DB.prepare('SELECT * FROM rsi_alerts ORDER BY created_at DESC').all();
     return jsonResponse({ data: result.results });
   } catch (err: any) {
     console.error('Alerts error:', err);
@@ -317,73 +307,23 @@ async function handleAlerts(env: Env): Promise<Response> {
   }
 }
 
-async function handleClearAlerts(env: Env): Promise<Response> {
+async function handleClearAlerts(request: Request, env: Env): Promise<Response> {
   try {
-    await env.DB.prepare('UPDATE rsi_alerts SET is_deleted = 1 WHERE is_deleted = 0').run();
+    let body: any = {};
+    if (request.headers.get('content-type')?.includes('application/json')) {
+      body = await request.json().catch(() => ({}));
+    }
+    
+    if (body.ids && Array.isArray(body.ids) && body.ids.length > 0) {
+      const placeholders = body.ids.map(() => '?').join(',');
+      await env.DB.prepare(`DELETE FROM rsi_alerts WHERE id IN (${placeholders})`).bind(...body.ids).run();
+    } else {
+      await env.DB.prepare('DELETE FROM rsi_alerts').run();
+    }
     return jsonResponse({ status: 'ok' });
   } catch (err: any) {
     console.error('Clear alerts error:', err);
     return jsonResponse({ error: 'Failed to clear alerts', message: err?.message ?? 'Unknown error' }, 500);
-  }
-}
-
-async function handleGetBin(env: Env): Promise<Response> {
-  try {
-    const result = await env.DB.prepare('SELECT * FROM rsi_alerts WHERE is_deleted = 1 ORDER BY created_at DESC').all();
-    return jsonResponse({ data: result.results });
-  } catch (err: any) {
-    console.error('Get bin error:', err);
-    return jsonResponse({ error: 'Failed to fetch bin', message: err?.message ?? 'Unknown error' }, 500);
-  }
-}
-
-async function handleMoveToBin(request: Request, env: Env): Promise<Response> {
-  try {
-    const body = await request.json() as { ids: number[] };
-    if (!body.ids || !Array.isArray(body.ids)) {
-      return jsonResponse({ error: 'Invalid payload, expected array of ids' }, 400);
-    }
-    if (body.ids.length === 0) return jsonResponse({ status: 'ok' });
-    
-    const placeholders = body.ids.map(() => '?').join(',');
-    await env.DB.prepare(`UPDATE rsi_alerts SET is_deleted = 1 WHERE id IN (${placeholders})`).bind(...body.ids).run();
-    return jsonResponse({ status: 'ok' });
-  } catch (err: any) {
-    console.error('Move to bin error:', err);
-    return jsonResponse({ error: 'Failed to move to bin', message: err?.message ?? 'Unknown error' }, 500);
-  }
-}
-
-async function handleRestoreFromBin(request: Request, env: Env): Promise<Response> {
-  try {
-    const body = await request.json() as { ids: number[] };
-    if (!body.ids || !Array.isArray(body.ids)) {
-      return jsonResponse({ error: 'Invalid payload, expected array of ids' }, 400);
-    }
-    if (body.ids.length === 0) return jsonResponse({ status: 'ok' });
-    
-    const placeholders = body.ids.map(() => '?').join(',');
-    await env.DB.prepare(`UPDATE rsi_alerts SET is_deleted = 0 WHERE id IN (${placeholders})`).bind(...body.ids).run();
-    return jsonResponse({ status: 'ok' });
-  } catch (err: any) {
-    console.error('Restore error:', err);
-    return jsonResponse({ error: 'Failed to restore', message: err?.message ?? 'Unknown error' }, 500);
-  }
-}
-
-async function handleEmptyBin(request: Request, env: Env): Promise<Response> {
-  try {
-    const body = await request.json().catch(() => ({})) as { ids?: number[] };
-    if (body.ids && Array.isArray(body.ids) && body.ids.length > 0) {
-      const placeholders = body.ids.map(() => '?').join(',');
-      await env.DB.prepare(`DELETE FROM rsi_alerts WHERE is_deleted = 1 AND id IN (${placeholders})`).bind(...body.ids).run();
-    } else {
-      await env.DB.prepare('DELETE FROM rsi_alerts WHERE is_deleted = 1').run();
-    }
-    return jsonResponse({ status: 'ok' });
-  } catch (err: any) {
-    console.error('Empty bin error:', err);
-    return jsonResponse({ error: 'Failed to empty bin', message: err?.message ?? 'Unknown error' }, 500);
   }
 }
 
