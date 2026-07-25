@@ -218,7 +218,7 @@ export function AlertsTable({ data, loading, onRowClick, onRefresh }: AlertsTabl
     <div className="w-full flex flex-col gap-6 animate-in fade-in duration-300">
       
       {/* Action Bar */}
-      <div className="flex flex-nowrap items-center justify-end gap-1.5 sm:gap-3 max-w-3xl mx-auto w-full px-2">
+      <div className="flex flex-nowrap items-center justify-start gap-1.5 sm:gap-3 max-w-3xl mx-auto w-full px-2">
         <button
           onClick={handleTestNotification}
           disabled={testNotificationLoading}
@@ -227,7 +227,7 @@ export function AlertsTable({ data, loading, onRowClick, onRefresh }: AlertsTabl
           <span className={clsx("material-symbols-outlined text-[16px] sm:text-[18px]", testNotificationLoading ? "animate-spin" : "transform -rotate-45")}>
             {testNotificationLoading ? 'sync' : 'send'}
           </span>
-          Test
+          <span>Test<span className="max-[450px]:hidden"> Alert</span></span>
         </button>
         
         <button
@@ -238,7 +238,7 @@ export function AlertsTable({ data, loading, onRowClick, onRefresh }: AlertsTabl
           <span className={clsx("material-symbols-outlined text-[16px] sm:text-[18px]", restoreAlertsLoading && "animate-spin")}>
             {restoreAlertsLoading ? 'sync' : 'restore'}
           </span>
-          Restore
+          <span>Restore<span className="max-[450px]:hidden"> Alerts</span></span>
         </button>
         
         <button
@@ -249,7 +249,7 @@ export function AlertsTable({ data, loading, onRowClick, onRefresh }: AlertsTabl
           <span className={clsx("material-symbols-outlined text-[16px] sm:text-[18px]", forceRunLoading && "animate-spin")}>
             {forceRunLoading ? 'sync' : 'bolt'}
           </span>
-          Scan
+          <span><span className="max-[450px]:hidden">Force </span>Scan</span>
         </button>
       </div>
 
