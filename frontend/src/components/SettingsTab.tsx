@@ -31,7 +31,6 @@ export function SettingsTab() {
   const [testNotificationLoading, setTestNotificationLoading] = useState(false);
   const [clearAlertsLoading, setClearAlertsLoading] = useState(false);
   const [restoreAlertsLoading, setRestoreAlertsLoading] = useState(false);
-  const [forceRunLoading, setForceRunLoading] = useState(false);
   const [rsiThreshold, setRsiThreshold] = useState(75);
   const [isSavingThreshold, setIsSavingThreshold] = useState(false);
   
@@ -220,22 +219,6 @@ export function SettingsTab() {
     }
   };
 
-  const handleForceRun = async () => {
-    try {
-      setForceRunLoading(true);
-      const apiUrl = import.meta.env.VITE_API_URL || '/api/scan';
-      const forceUrl = apiUrl.replace('/scan', '/force-run');
-      
-      const res = await fetch(forceUrl, { method: 'POST' });
-      if (!res.ok) throw new Error('Failed to force run cron');
-      alert('Cron job successfully triggered! Check your notifications in a few moments.');
-    } catch (err: any) {
-      console.error(err);
-      alert('Error triggering cron job');
-    } finally {
-      setForceRunLoading(false);
-    }
-  };
 
   const handleSaveThreshold = async (val: number) => {
     try {
@@ -356,16 +339,6 @@ export function SettingsTab() {
           Restore Alerts from Backup
         </button>
 
-        <button
-          onClick={handleForceRun}
-          disabled={forceRunLoading}
-          className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-secondary text-on-secondary-container font-bold hover:brightness-110 active:scale-[0.99] transition-all disabled:opacity-50"
-        >
-          <span className={clsx("material-symbols-outlined", forceRunLoading && "animate-spin")}>
-            {forceRunLoading ? 'sync' : 'bolt'}
-          </span>
-          Force Run Scan Now
-        </button>
       </div>
 
       {/* API Providers */}

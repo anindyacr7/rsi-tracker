@@ -12,6 +12,7 @@ interface AlertsTableProps {
 
 export function AlertsTable({ data, loading, onRowClick, onRefresh }: AlertsTableProps) {
   const [expandedDates, setExpandedDates] = useState<Record<string, boolean>>({});
+  const [forceRunLoading, setForceRunLoading] = useState(false);
 
   const { activeAlerts, archivedAlertsByDate } = useMemo(() => {
     const now = Date.now();
@@ -63,6 +64,23 @@ export function AlertsTable({ data, loading, onRowClick, onRefresh }: AlertsTabl
     } catch (err: any) {
       console.error(err);
       alert(err.message || 'Failed to delete alert(s)');
+    }
+  };
+
+  const handleForceRun = async () => {
+    try {
+      setForceRunLoading(true);
+      const apiUrl = import.meta.env.VITE_API_URL || '/api/scan';
+      const forceUrl = apiUrl.replace('/scan', '/force-run');
+      
+      const res = await fetch(forceUrl, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to force run cron');
+      alert('Cron job successfully triggered! Check your notifications in a few moments.');
+    } catch (err: any) {
+      console.error(err);
+      alert('Error triggering cron job');
+    } finally {
+      setForceRunLoading(false);
     }
   };
 
@@ -153,6 +171,20 @@ export function AlertsTable({ data, loading, onRowClick, onRefresh }: AlertsTabl
   return (
     <div className="w-full flex flex-col gap-6 animate-in fade-in duration-300">
       
+      {/* Action Bar */}
+      <div className="flex justify-end max-w-3xl mx-auto w-full px-2">
+        <button
+          onClick={handleForceRun}
+          disabled={forceRunLoading}
+          className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-secondary text-on-secondary-container font-bold hover:brightness-110 active:scale-[0.99] transition-all disabled:opacity-50"
+        >
+          <span className={clsx("material-symbols-outlined", forceRunLoading && "animate-spin")}>
+            {forceRunLoading ? 'sync' : 'bolt'}
+          </span>
+          Force Run Scan Now
+        </button>
+      </div>
+
       {/* Active Alerts Section */}
       <div className="w-full flex flex-col">
         {activeAlerts.length > 0 ? (
