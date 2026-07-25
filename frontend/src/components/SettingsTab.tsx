@@ -30,6 +30,7 @@ export function SettingsTab() {
   
   const [testNotificationLoading, setTestNotificationLoading] = useState(false);
   const [clearAlertsLoading, setClearAlertsLoading] = useState(false);
+  const [restoreAlertsLoading, setRestoreAlertsLoading] = useState(false);
   const [forceRunLoading, setForceRunLoading] = useState(false);
   const [rsiThreshold, setRsiThreshold] = useState(75);
   const [isSavingThreshold, setIsSavingThreshold] = useState(false);
@@ -201,6 +202,24 @@ export function SettingsTab() {
     }
   };
 
+  const handleRestoreAlerts = async () => {
+    if (!window.confirm('Are you sure you want to restore alerts from the backup? This will bring back previously deleted alerts.')) return;
+    try {
+      setRestoreAlertsLoading(true);
+      const apiUrl = import.meta.env.VITE_API_URL || '/api/scan';
+      const restoreUrl = apiUrl.replace('/scan', '/alerts/restore');
+      
+      const res = await fetch(restoreUrl, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to restore alerts data');
+      alert('Alerts restored successfully! Refresh the page to see changes.');
+    } catch (err: any) {
+      console.error(err);
+      alert('Error restoring alerts data');
+    } finally {
+      setRestoreAlertsLoading(false);
+    }
+  };
+
   const handleForceRun = async () => {
     try {
       setForceRunLoading(true);
@@ -324,6 +343,17 @@ export function SettingsTab() {
             {clearAlertsLoading ? 'sync' : 'delete'}
           </span>
           Clear Alerts History
+        </button>
+
+        <button
+          onClick={handleRestoreAlerts}
+          disabled={restoreAlertsLoading}
+          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border border-outline-variant hover:bg-surface-variant transition-colors text-on-surface font-medium disabled:opacity-50"
+        >
+          <span className={clsx("material-symbols-outlined text-xl", restoreAlertsLoading && "animate-spin")}>
+            {restoreAlertsLoading ? 'sync' : 'restore'}
+          </span>
+          Restore Alerts from Backup
         </button>
 
         <button

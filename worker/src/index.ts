@@ -49,6 +49,10 @@ export default {
       if (request.method === 'GET') return handleAlerts(env);
       if (request.method === 'DELETE') return handleClearAlerts(request, env);
     }
+    
+    if (url.pathname === '/api/alerts/restore' && request.method === 'POST') {
+      return handleRestoreAlerts(env);
+    }
 
     if (url.pathname === '/api/settings') {
       if (request.method === 'GET') return handleGetSettings(env);
@@ -316,8 +320,10 @@ async function handleClearAlerts(request: Request, env: Env): Promise<Response> 
     
     if (body.ids && Array.isArray(body.ids) && body.ids.length > 0) {
       const placeholders = body.ids.map(() => '?').join(',');
+      await env.DB.prepare(`INSERT OR REPLACE INTO rsi_alerts_backup SELECT * FROM rsi_alerts WHERE id IN (${placeholders})`).bind(...body.ids).run();
       await env.DB.prepare(`DELETE FROM rsi_alerts WHERE id IN (${placeholders})`).bind(...body.ids).run();
     } else if (body.clearAll === true) {
+      await env.DB.prepare('INSERT OR REPLACE INTO rsi_alerts_backup SELECT * FROM rsi_alerts').run();
       await env.DB.prepare('DELETE FROM rsi_alerts').run();
     } else {
       return jsonResponse({ error: 'Invalid request: must provide ids array or clearAll flag' }, 400);
@@ -326,6 +332,16 @@ async function handleClearAlerts(request: Request, env: Env): Promise<Response> 
   } catch (err: any) {
     console.error('Clear alerts error:', err);
     return jsonResponse({ error: 'Failed to clear alerts', message: err?.message ?? 'Unknown error' }, 500);
+  }
+}
+
+async function handleRestoreAlerts(env: Env): Promise<Response> {
+  try {
+    await env.DB.prepare('INSERT OR IGNORE INTO rsi_alerts SELECT * FROM rsi_alerts_backup').run();
+    return jsonResponse({ status: 'ok' });
+  } catch (err: any) {
+    console.error('Restore alerts error:', err);
+    return jsonResponse({ error: 'Failed to restore alerts', message: err?.message ?? 'Unknown error' }, 500);
   }
 }
 

@@ -37,30 +37,29 @@ graph TD
         RSI --> Telegram
         
         Router --> |GET /alerts| FetchAlerts[Fetch Active Alerts]
-        Router --> |PUT /alerts/bin| BinAlerts[Bin Alerts]
-        Router --> |PUT /alerts/restore| RestoreAlerts[Restore Alerts]
-        Router --> |GET /alerts/bin| FetchBin[Fetch Bin]
-        Router --> |DELETE /alerts/bin| DeleteBin[Empty Bin]
+        Router --> |DELETE /alerts| DeleteAlerts[Delete Alerts to Backup]
+        Router --> |POST /alerts/restore| RestoreAlerts[Restore Alerts from Backup]
     end
 
     %% Database
     subgraph Database [Cloudflare D1 SQLite]
         RsiAlerts[(rsi_alerts)]
+        RsiAlertsBackup[(rsi_alerts_backup)]
         PushSubs[(push_subscriptions)]
         McapCache[(mcap_cache)]
         GlobalSettings[(global_settings)]
     end
 
     %% Interactions
-    AlertsTab --> |Fetch & Bin| Router
-    Settings --> |Fetch & Restore| Router
+    AlertsTab --> |Fetch & Delete| Router
+    Settings --> |Fetch & Restore & Settings| Router
     DataTbl --> Router
     
     FetchAlerts --> RsiAlerts
-    BinAlerts --> RsiAlerts
+    DeleteAlerts --> RsiAlerts
+    DeleteAlerts --> RsiAlertsBackup
     RestoreAlerts --> RsiAlerts
-    FetchBin --> RsiAlerts
-    DeleteBin --> RsiAlerts
+    RestoreAlerts --> RsiAlertsBackup
     
     Cron --> RsiAlerts
     Push --> PushSubs
