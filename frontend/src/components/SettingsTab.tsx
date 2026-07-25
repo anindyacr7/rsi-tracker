@@ -28,9 +28,6 @@ export function SettingsTab() {
     return localStorage.getItem('chartInterval') || '15m';
   });
   
-  const [testNotificationLoading, setTestNotificationLoading] = useState(false);
-  const [clearAlertsLoading, setClearAlertsLoading] = useState(false);
-  const [restoreAlertsLoading, setRestoreAlertsLoading] = useState(false);
   const [rsiThreshold, setRsiThreshold] = useState(75);
   const [isSavingThreshold, setIsSavingThreshold] = useState(false);
   
@@ -154,71 +151,6 @@ export function SettingsTab() {
     }
   };
 
-  const handleTestNotification = async () => {
-    try {
-      setTestNotificationLoading(true);
-      const apiUrl = import.meta.env.VITE_API_URL || '/api/scan';
-      const testUrl = apiUrl.replace('/scan', '/test-notification');
-      
-      const res = await fetch(testUrl);
-      if (!res.ok) {
-        let errMsg = 'Failed to send test notification';
-        try {
-          const errJson = await res.json();
-          if (errJson.message) errMsg += `: ${errJson.message}`;
-          else if (errJson.error) errMsg += `: ${errJson.error}`;
-        } catch (_) {}
-        throw new Error(errMsg);
-      }
-      alert('Test notification sent successfully!');
-    } catch (err: any) {
-      console.error(err);
-      alert(err.message || 'Error sending test notification');
-    } finally {
-      setTestNotificationLoading(false);
-    }
-  };
-
-  const handleClearAlerts = async () => {
-    if (!window.confirm('Are you sure you want to clear all RSI alerts data? This will empty the feed in the UI.')) return;
-    try {
-      setClearAlertsLoading(true);
-      const apiUrl = import.meta.env.VITE_API_URL || '/api/scan';
-      const clearUrl = apiUrl.replace('/scan', '/alerts');
-      
-      const res = await fetch(clearUrl, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clearAll: true })
-      });
-      if (!res.ok) throw new Error('Failed to clear alerts data');
-      alert('Alerts data cleared successfully! Refresh the page to see changes.');
-    } catch (err: any) {
-      console.error(err);
-      alert('Error clearing alerts data');
-    } finally {
-      setClearAlertsLoading(false);
-    }
-  };
-
-  const handleRestoreAlerts = async () => {
-    if (!window.confirm('Are you sure you want to restore alerts from the backup? This will bring back previously deleted alerts.')) return;
-    try {
-      setRestoreAlertsLoading(true);
-      const apiUrl = import.meta.env.VITE_API_URL || '/api/scan';
-      const restoreUrl = apiUrl.replace('/scan', '/alerts/restore');
-      
-      const res = await fetch(restoreUrl, { method: 'POST' });
-      if (!res.ok) throw new Error('Failed to restore alerts data');
-      alert('Alerts restored successfully! Refresh the page to see changes.');
-    } catch (err: any) {
-      console.error(err);
-      alert('Error restoring alerts data');
-    } finally {
-      setRestoreAlertsLoading(false);
-    }
-  };
-
 
   const handleSaveThreshold = async (val: number) => {
     try {
@@ -303,43 +235,6 @@ export function SettingsTab() {
       </div>
 
 
-
-      {/* Action Buttons */}
-      <div className="space-y-3 mb-8">
-        <button
-          onClick={handleTestNotification}
-          disabled={testNotificationLoading}
-          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border border-outline-variant hover:bg-surface-variant transition-colors text-on-surface font-medium disabled:opacity-50"
-        >
-          <span className={clsx("material-symbols-outlined text-xl", testNotificationLoading ? "animate-spin" : "transform -rotate-45")}>
-            {testNotificationLoading ? 'sync' : 'send'}
-          </span>
-          Send Test Notification (BTC RSI)
-        </button>
-
-        <button
-          onClick={handleClearAlerts}
-          disabled={clearAlertsLoading}
-          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border border-outline-variant hover:bg-surface-variant transition-colors text-on-surface font-medium disabled:opacity-50"
-        >
-          <span className={clsx("material-symbols-outlined text-xl", clearAlertsLoading && "animate-spin")}>
-            {clearAlertsLoading ? 'sync' : 'delete'}
-          </span>
-          Clear Alerts History
-        </button>
-
-        <button
-          onClick={handleRestoreAlerts}
-          disabled={restoreAlertsLoading}
-          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border border-outline-variant hover:bg-surface-variant transition-colors text-on-surface font-medium disabled:opacity-50"
-        >
-          <span className={clsx("material-symbols-outlined text-xl", restoreAlertsLoading && "animate-spin")}>
-            {restoreAlertsLoading ? 'sync' : 'restore'}
-          </span>
-          Restore Alerts from Backup
-        </button>
-
-      </div>
 
       {/* API Providers */}
       <div className="space-y-8">

@@ -13,6 +13,8 @@ interface AlertsTableProps {
 export function AlertsTable({ data, loading, onRowClick, onRefresh }: AlertsTableProps) {
   const [expandedDates, setExpandedDates] = useState<Record<string, boolean>>({});
   const [forceRunLoading, setForceRunLoading] = useState(false);
+  const [testNotificationLoading, setTestNotificationLoading] = useState(false);
+  const [restoreAlertsLoading, setRestoreAlertsLoading] = useState(false);
 
   const { activeAlerts, archivedAlertsByDate } = useMemo(() => {
     const now = Date.now();
@@ -38,16 +40,16 @@ export function AlertsTable({ data, loading, onRowClick, onRefresh }: AlertsTabl
     return { activeAlerts: active, archivedAlertsByDate: archived };
   }, [data]);
 
-  const handleBin = async (ids: number[], e: React.MouseEvent) => {
+  const handleBin = async (symbols: string[], e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!window.confirm(`Permanently delete ${ids.length} alert(s)?`)) return;
+    if (!window.confirm(`Permanently delete ${symbols.length} alert(s)?`)) return;
     try {
       const scanApiUrl = import.meta.env.VITE_API_URL || '/api/scan';
       const apiUrl = scanApiUrl.replace('/scan', '/alerts');
       const res = await fetch(apiUrl, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids })
+        body: JSON.stringify({ symbols })
       });
       if (!res.ok) {
         let errMsg = 'Failed to delete alert(s)';
@@ -81,6 +83,50 @@ export function AlertsTable({ data, loading, onRowClick, onRefresh }: AlertsTabl
       alert('Error triggering cron job');
     } finally {
       setForceRunLoading(false);
+    }
+  };
+
+  const handleTestNotification = async () => {
+    try {
+      setTestNotificationLoading(true);
+      const apiUrl = import.meta.env.VITE_API_URL || '/api/scan';
+      const testUrl = apiUrl.replace('/scan', '/test-notification');
+      
+      const res = await fetch(testUrl);
+      if (!res.ok) {
+        let errMsg = 'Failed to send test notification';
+        try {
+          const errJson = await res.json();
+          if (errJson.message) errMsg += `: ${errJson.message}`;
+          else if (errJson.error) errMsg += `: ${errJson.error}`;
+        } catch (_) {}
+        throw new Error(errMsg);
+      }
+      alert('Test notification sent successfully!');
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Error sending test notification');
+    } finally {
+      setTestNotificationLoading(false);
+    }
+  };
+
+  const handleRestoreAlerts = async () => {
+    if (!window.confirm('Are you sure you want to restore alerts from the backup? This will bring back previously deleted alerts.')) return;
+    try {
+      setRestoreAlertsLoading(true);
+      const apiUrl = import.meta.env.VITE_API_URL || '/api/scan';
+      const restoreUrl = apiUrl.replace('/scan', '/alerts/restore');
+      
+      const res = await fetch(restoreUrl, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to restore alerts data');
+      alert('Alerts restored successfully! Refresh the page to see changes.');
+      onRefresh?.();
+    } catch (err: any) {
+      console.error(err);
+      alert('Error restoring alerts data');
+    } finally {
+      setRestoreAlertsLoading(false);
     }
   };
 
@@ -125,7 +171,7 @@ export function AlertsTable({ data, loading, onRowClick, onRefresh }: AlertsTabl
             
             return (
               <tr 
-                key={item.id} 
+                key={item.symbol} 
                 className="border-b border-outline-variant/30 hover:bg-surface-container-highest/30 transition-colors cursor-pointer group"
                 onClick={() => onRowClick?.(item.symbol)}
               >
@@ -153,7 +199,7 @@ export function AlertsTable({ data, loading, onRowClick, onRefresh }: AlertsTabl
 
                 <td className="py-2 px-2 text-center text-on-surface-variant">
                   <button 
-                    onClick={(e) => handleBin([item.id], e)}
+                    onClick={(e) => handleBin([item.symbol], e)}
                     className="p-1 hover:text-error hover:bg-error/10 rounded-full transition-colors flex items-center justify-center ml-auto"
                     title="Delete"
                   >
@@ -172,16 +218,38 @@ export function AlertsTable({ data, loading, onRowClick, onRefresh }: AlertsTabl
     <div className="w-full flex flex-col gap-6 animate-in fade-in duration-300">
       
       {/* Action Bar */}
-      <div className="flex justify-end max-w-3xl mx-auto w-full px-2">
+      <div className="flex flex-wrap items-center justify-end gap-3 max-w-3xl mx-auto w-full px-2">
+        <button
+          onClick={handleTestNotification}
+          disabled={testNotificationLoading}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-outline-variant hover:bg-surface-variant transition-colors text-on-surface font-medium text-sm disabled:opacity-50"
+        >
+          <span className={clsx("material-symbols-outlined text-[18px]", testNotificationLoading ? "animate-spin" : "transform -rotate-45")}>
+            {testNotificationLoading ? 'sync' : 'send'}
+          </span>
+          Test Alert
+        </button>
+        
+        <button
+          onClick={handleRestoreAlerts}
+          disabled={restoreAlertsLoading}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-outline-variant hover:bg-surface-variant transition-colors text-on-surface font-medium text-sm disabled:opacity-50"
+        >
+          <span className={clsx("material-symbols-outlined text-[18px]", restoreAlertsLoading && "animate-spin")}>
+            {restoreAlertsLoading ? 'sync' : 'restore'}
+          </span>
+          Restore
+        </button>
+        
         <button
           onClick={handleForceRun}
           disabled={forceRunLoading}
-          className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-secondary text-on-secondary-container font-bold hover:brightness-110 active:scale-[0.99] transition-all disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-outline-variant bg-surface-container-highest hover:bg-surface-variant transition-colors text-on-surface font-medium text-sm disabled:opacity-50"
         >
-          <span className={clsx("material-symbols-outlined", forceRunLoading && "animate-spin")}>
+          <span className={clsx("material-symbols-outlined text-[18px]", forceRunLoading && "animate-spin")}>
             {forceRunLoading ? 'sync' : 'bolt'}
           </span>
-          Force Run Scan Now
+          Force Scan
         </button>
       </div>
 

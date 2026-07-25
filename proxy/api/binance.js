@@ -14,7 +14,28 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { path, ...query } = req.query;
+    const { path, symbols, ...query } = req.query;
+    
+    // CUSTOM BATCH ENDPOINT to bypass CF 50 subrequest limit
+    if (path === '/batch-klines' && symbols) {
+      const symbolArray = symbols.split(',');
+      const results = {};
+      const { interval = '15m', limit = 150 } = query;
+      
+      const promises = symbolArray.map(async (sym) => {
+        const url = `https://api.binance.com/api/v3/klines?symbol=${sym}&interval=${interval}&limit=${limit}`;
+        try {
+          const fetchRes = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+          if (fetchRes.ok) {
+            results[sym] = await fetchRes.json();
+          }
+        } catch(e) {}
+      });
+      
+      await Promise.all(promises);
+      return res.status(200).json(results);
+    }
+
     if (!path) {
       return res.status(400).json({ error: 'Missing path parameter' });
     }
