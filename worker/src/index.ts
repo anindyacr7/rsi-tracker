@@ -317,8 +317,10 @@ async function handleClearAlerts(request: Request, env: Env): Promise<Response> 
     if (body.ids && Array.isArray(body.ids) && body.ids.length > 0) {
       const placeholders = body.ids.map(() => '?').join(',');
       await env.DB.prepare(`DELETE FROM rsi_alerts WHERE id IN (${placeholders})`).bind(...body.ids).run();
-    } else {
+    } else if (body.clearAll === true) {
       await env.DB.prepare('DELETE FROM rsi_alerts').run();
+    } else {
+      return jsonResponse({ error: 'Invalid request: must provide ids array or clearAll flag' }, 400);
     }
     return jsonResponse({ status: 'ok' });
   } catch (err: any) {

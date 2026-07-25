@@ -186,7 +186,11 @@ export function SettingsTab() {
       const apiUrl = import.meta.env.VITE_API_URL || '/api/scan';
       const clearUrl = apiUrl.replace('/scan', '/alerts');
       
-      const res = await fetch(clearUrl, { method: 'DELETE' });
+      const res = await fetch(clearUrl, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clearAll: true })
+      });
       if (!res.ok) throw new Error('Failed to clear alerts data');
       alert('Alerts data cleared successfully! Refresh the page to see changes.');
     } catch (err: any) {
