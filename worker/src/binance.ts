@@ -124,7 +124,11 @@ export async function fetchKlines(
   provider: PriceProvider = 'binance-data'
 ): Promise<number[]> {
   if (provider === 'binance-data') {
-    const res = await fetch(`https://data-api.binance.vision/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`, fetchOptions);
+    let res = await fetch(`https://data-api.binance.vision/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`, fetchOptions);
+    if (res.status === 429) {
+      await new Promise(r => setTimeout(r, 1000));
+      res = await fetch(`https://data-api.binance.vision/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`, fetchOptions);
+    }
     if (!res.ok) throw new Error(`Binance Data API error: ${res.status}`);
     const data: any[][] = await res.json() as any[][];
     return data.map((k) => parseFloat(k[4]));
