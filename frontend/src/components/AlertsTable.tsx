@@ -218,24 +218,24 @@ export function AlertsTable({ data, loading, onRowClick, onRefresh }: AlertsTabl
     <div className="w-full flex flex-col gap-6 animate-in fade-in duration-300">
       
       {/* Action Bar */}
-      <div className="flex flex-wrap items-center justify-end gap-3 max-w-3xl mx-auto w-full px-2">
+      <div className="flex flex-nowrap items-center justify-end gap-1.5 sm:gap-3 max-w-3xl mx-auto w-full px-2">
         <button
           onClick={handleTestNotification}
           disabled={testNotificationLoading}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-outline-variant hover:bg-surface-variant transition-colors text-on-surface font-medium text-sm disabled:opacity-50"
+          className="flex items-center gap-1 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg border border-outline-variant hover:bg-surface-variant transition-colors text-on-surface font-medium text-[11px] sm:text-sm disabled:opacity-50 whitespace-nowrap"
         >
-          <span className={clsx("material-symbols-outlined text-[18px]", testNotificationLoading ? "animate-spin" : "transform -rotate-45")}>
+          <span className={clsx("material-symbols-outlined text-[16px] sm:text-[18px]", testNotificationLoading ? "animate-spin" : "transform -rotate-45")}>
             {testNotificationLoading ? 'sync' : 'send'}
           </span>
-          Test Alert
+          Test
         </button>
         
         <button
           onClick={handleRestoreAlerts}
           disabled={restoreAlertsLoading}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-outline-variant hover:bg-surface-variant transition-colors text-on-surface font-medium text-sm disabled:opacity-50"
+          className="flex items-center gap-1 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg border border-outline-variant hover:bg-surface-variant transition-colors text-on-surface font-medium text-[11px] sm:text-sm disabled:opacity-50 whitespace-nowrap"
         >
-          <span className={clsx("material-symbols-outlined text-[18px]", restoreAlertsLoading && "animate-spin")}>
+          <span className={clsx("material-symbols-outlined text-[16px] sm:text-[18px]", restoreAlertsLoading && "animate-spin")}>
             {restoreAlertsLoading ? 'sync' : 'restore'}
           </span>
           Restore
@@ -244,12 +244,12 @@ export function AlertsTable({ data, loading, onRowClick, onRefresh }: AlertsTabl
         <button
           onClick={handleForceRun}
           disabled={forceRunLoading}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-outline-variant bg-surface-container-highest hover:bg-surface-variant transition-colors text-on-surface font-medium text-sm disabled:opacity-50"
+          className="flex items-center gap-1 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg border border-outline-variant bg-surface-container-highest hover:bg-surface-variant transition-colors text-on-surface font-medium text-[11px] sm:text-sm disabled:opacity-50 whitespace-nowrap"
         >
-          <span className={clsx("material-symbols-outlined text-[18px]", forceRunLoading && "animate-spin")}>
+          <span className={clsx("material-symbols-outlined text-[16px] sm:text-[18px]", forceRunLoading && "animate-spin")}>
             {forceRunLoading ? 'sync' : 'bolt'}
           </span>
-          Force Scan
+          Scan
         </button>
       </div>
 
