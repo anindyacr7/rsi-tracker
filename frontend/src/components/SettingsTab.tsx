@@ -1,7 +1,6 @@
 import clsx from 'clsx';
 import { useState, useEffect } from 'react';
-import type { Alert } from '../types';
-import { getRsiClass } from '../utils/formatters';
+
 
 const urlB64ToUint8Array = (base64String: string) => {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
