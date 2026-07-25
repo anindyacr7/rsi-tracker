@@ -352,12 +352,13 @@ async function handleClearAlerts(request: Request, env: Env): Promise<Response> 
       body = await request.json().catch(() => ({}));
     }
     
+    const columns = 'symbol, first_hit_time, first_rsi_value, max_rsi_value, percent_move_24h, mcap_rank, last_notified_at, created_at, is_deleted';
     if (body.symbols && Array.isArray(body.symbols) && body.symbols.length > 0) {
       const placeholders = body.symbols.map(() => '?').join(',');
-      await env.DB.prepare(`INSERT OR REPLACE INTO rsi_alerts_backup SELECT * FROM rsi_alerts WHERE symbol IN (${placeholders})`).bind(...body.symbols).run();
+      await env.DB.prepare(`INSERT OR REPLACE INTO rsi_alerts_backup (${columns}) SELECT ${columns} FROM rsi_alerts WHERE symbol IN (${placeholders})`).bind(...body.symbols).run();
       await env.DB.prepare(`DELETE FROM rsi_alerts WHERE symbol IN (${placeholders})`).bind(...body.symbols).run();
     } else if (body.clearAll === true) {
-      await env.DB.prepare('INSERT OR REPLACE INTO rsi_alerts_backup SELECT * FROM rsi_alerts').run();
+      await env.DB.prepare(`INSERT OR REPLACE INTO rsi_alerts_backup (${columns}) SELECT ${columns} FROM rsi_alerts`).run();
       await env.DB.prepare('DELETE FROM rsi_alerts').run();
     } else {
       return jsonResponse({ error: 'Invalid request: must provide symbols array or clearAll flag' }, 400);
@@ -371,7 +372,8 @@ async function handleClearAlerts(request: Request, env: Env): Promise<Response> 
 
 async function handleRestoreAlerts(env: Env): Promise<Response> {
   try {
-    await env.DB.prepare('INSERT OR IGNORE INTO rsi_alerts SELECT * FROM rsi_alerts_backup').run();
+    const columns = 'symbol, first_hit_time, first_rsi_value, max_rsi_value, percent_move_24h, mcap_rank, last_notified_at, created_at, is_deleted';
+    await env.DB.prepare(`INSERT OR IGNORE INTO rsi_alerts (${columns}) SELECT ${columns} FROM rsi_alerts_backup`).run();
     return jsonResponse({ status: 'ok' });
   } catch (err: any) {
     console.error('Restore alerts error:', err);
