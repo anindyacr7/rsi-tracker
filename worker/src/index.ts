@@ -1,7 +1,7 @@
 import { fetchMarketCaps } from './marketcap';
-import { fetchValidUSDTPairs, fetchKlines } from './binance';
+import { fetchValidUSDTPairs, fetchKlines, fetchKlinesBatch } from './binance';
 import { calculateRSI } from './rsi';
-import webpush from 'web-push';
+import * as webpush from 'web-push';
 
 export const APP_VERSION = 'v1.0.1';
 
@@ -77,36 +77,62 @@ export default {
     if (url.pathname === '/api/test-notification' && request.method === 'GET') {
       try {
         const thresholdRecord = await env.DB.prepare("SELECT value FROM global_settings WHERE key = 'rsi_threshold'").first();
-        const rsiThreshold = thresholdRecord ? parseFloat(thresholdRecord.value) : 75;
+        const rsiThreshold = thresholdRecord ? parseFloat(thresholdRecord.value as string) : 75;
 
-        let rsiText = 'N/A';
-        let errorText = '';
         let activeProvider = 'Unknown';
+        let top5: { symbol: string, rsi: number }[] = [];
+        
         try {
-          const { provider } = await fetchValidUSDTPairs();
+          const { mcapMap } = await fetchMarketCaps(undefined, env.DB); 
+          const { provider, tickers: allTickers } = await fetchValidUSDTPairs(env.BINANCE_PROXY_URL);
           activeProvider = provider;
-          const closes = await fetchKlines('BTCUSDT', '15m', 150, provider);
-          if (closes.length > 14) {
-            const rsi = calculateRSI(closes, 14);
-            rsiText = rsi !== null ? rsi.toFixed(2) : 'N/A';
-          } else {
-            errorText = 'Not enough data points returned.';
-          }
-        } catch (e: any) {
-          errorText = e.message;
-        }
-        
-        let text = `🚨 *TEST RSI ALERT* 🚨\nToken: #BTCUSDT\nRSI (15m): ${rsiText}\nThreshold: ${rsiThreshold}\nProvider: ${activeProvider}\nWorker: ${APP_VERSION}`;
-        let webPushText = `[TEST] #BTCUSDT | RSI: ${rsiText} (>${rsiThreshold}) | Src: ${activeProvider} (v${APP_VERSION})`;
+          
+          const tickers = allTickers.filter(t => {
+            const rank = mcapMap.get(t.symbol.replace('USDT', ''))?.rank;
+            return rank && rank <= 200;
+          });
 
-        if (errorText) {
-          text += `\n⚠️ *Error:* ${errorText}`;
-          webPushText += ` | Error: ${errorText}`;
+          const results: { symbol: string, rsi: number }[] = [];
+          const CHUNK_SIZE = 20;
+          for (let i = 0; i < tickers.length; i += CHUNK_SIZE) {
+            const chunk = tickers.slice(i, i + CHUNK_SIZE);
+            const chunkSymbols = chunk.map(t => t.symbol);
+            
+            const batchResults = await fetchKlinesBatch(chunkSymbols, '15m', 150, provider, env.BINANCE_PROXY_URL);
+            
+            for (const sym of Object.keys(batchResults)) {
+              const closes = batchResults[sym];
+              if (closes && closes.length > 14) {
+                const rsi = calculateRSI(closes, 14);
+                if (rsi !== null) {
+                  results.push({ symbol: sym, rsi });
+                }
+              }
+            }
+            if (i + CHUNK_SIZE < tickers.length) {
+              await new Promise(r => setTimeout(r, 200)); 
+            }
+          }
+          
+          results.sort((a, b) => b.rsi - a.rsi);
+          top5 = results.slice(0, 5);
+        } catch (e: any) {
+          console.error(e);
         }
         
-        await sendTelegramMessage(env, text);
+        let rsiTextList = top5.length > 0 
+          ? top5.map((t, idx) => `${idx + 1}. #${t.symbol} - ${t.rsi.toFixed(1)}`).join('\n')
+          : 'No data fetched.';
+          
+        let text = `🚨 <b>TEST RSI ALERT</b> 🚨\nTop 5 Coins (15m):\n${rsiTextList}\nThreshold: ${rsiThreshold}\nProvider: ${activeProvider}\nWorker: ${APP_VERSION}`;
+        let webPushText = `[TEST] Top 5: ${top5.map(t => t.symbol.replace('USDT', '')).join(', ')} | Src: ${activeProvider} (v${APP_VERSION})`;
+
+        if (env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID) {
+          await sendTelegramMessage(env, text);
+        }
         await sendWebPush(env, webPushText);
-        return jsonResponse({ status: 'ok', message: 'Test notification sent successfully.', version: APP_VERSION });
+
+        return jsonResponse({ status: 'ok', message: 'Test notification sent.' });
       } catch (err: any) {
         return jsonResponse({ status: 'error', message: err.message }, 500);
       }
@@ -141,24 +167,28 @@ async function handleCron(env: Env, fullScan: boolean = false) {
     const CHUNK_SIZE = 20;
     for (let i = 0; i < tickers.length; i += CHUNK_SIZE) {
       const chunk = tickers.slice(i, i + CHUNK_SIZE);
-      const promises = chunk.map(async (ticker) => {
+      const chunkSymbols = chunk.map(t => t.symbol);
+      
+      const batchResults = await fetchKlinesBatch(chunkSymbols, '15m', 150, provider, env.BINANCE_PROXY_URL);
+      
+      for (const ticker of chunk) {
         const symbol = ticker.symbol;
         try {
-          const closes = await fetchKlines(symbol, '15m', 150, provider, env.BINANCE_PROXY_URL);
-          if (closes.length > 14) {
+          const closes = batchResults[symbol];
+          if (closes && closes.length > 14) {
             const rsi = calculateRSI(closes, 14);
             if (symbol === 'WIFUSDT' || symbol === 'PENGUUSDT' || symbol === 'GRAMUSDT') {
-              console.log(`[DEBUG] ${symbol} 15m RSI: ${rsi}`);
+              console.log(`[DEBUG] ${symbol} RSI: ${rsi}`);
             }
             if (rsi !== null && rsi >= rsiThreshold) {
-              await processAlert(env, ticker, rsi, mcapMap.get(symbol.replace('USDT', ''))?.rank);
+              const rank = mcapMap.get(symbol.replace('USDT', ''))?.rank;
+              await processAlert(env, ticker, rsi, rank);
             }
           }
         } catch (e) {
-          console.warn(`Cron fetch failed for ${symbol}:`, e);
+          console.error(`Error processing ${symbol}:`, e);
         }
-      });
-      await Promise.all(promises);
+      }
       
       if (i + CHUNK_SIZE < tickers.length) {
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -178,6 +208,9 @@ async function processAlert(env: Env, ticker: any, rsi: number, rank?: number) {
   
   const percentMove24h = parseFloat(ticker.priceChangePercent);
   
+  let shouldUpdateMax = false;
+  let shouldNotify = false;
+  
   if (!existing || now - (existing.created_at as number) > 48 * 60 * 60 * 1000) {
     // New or expired, insert new
     await env.DB.prepare(`
@@ -185,11 +218,10 @@ async function processAlert(env: Env, ticker: any, rsi: number, rank?: number) {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
     `).bind(symbol, now, rsi, rsi, percentMove24h, rank || null, now, now).run();
     
-    await sendTelegramMessage(env, `🚨 *RSI ALERT* 🚨\nToken: #${symbol}\nRSI (15m): ${rsi}\n24h Move: ${percentMove24h}%\nRank: ${rank || 'N/A'}`);
+    await sendTelegramMessage(env, `🚨 <b>RSI ALERT</b> 🚨\nToken: #${symbol}\nRSI (15m): ${rsi}\n24h Move: ${percentMove24h}%\nRank: ${rank || 'N/A'}`);
   } else {
     // Exists within 24h
     let maxRsi = (existing.max_rsi_value as number);
-    let shouldUpdateMax = false;
     
     if (rsi > maxRsi) {
       maxRsi = rsi;
@@ -197,7 +229,6 @@ async function processAlert(env: Env, ticker: any, rsi: number, rank?: number) {
     }
     
     const lastNotified = existing.last_notified_at as number;
-    let shouldNotify = false;
     
     if (now - lastNotified > 60 * 60 * 1000) {
       // Cooldown of 1 hour passed
@@ -217,7 +248,7 @@ async function processAlert(env: Env, ticker: any, rsi: number, rank?: number) {
       ).run();
       
       if (shouldNotify) {
-        await sendTelegramMessage(env, `🚨 *RSI ALERT (Update)* 🚨\nToken: #${symbol}\nNew RSI (15m): ${rsi}\nMax RSI: ${maxRsi}\n24h Move: ${percentMove24h}%\nRank: ${rank || 'N/A'}`);
+        await sendTelegramMessage(env, `🚨 <b>RSI ALERT (Update)</b> 🚨\nToken: #${symbol}\nNew RSI (15m): ${rsi}\nMax RSI: ${maxRsi}\n24h Move: ${percentMove24h}%\nRank: ${rank || 'N/A'}`);
       }
     }
   }
@@ -265,23 +296,18 @@ async function sendWebPush(env: Env, text: string) {
 }
 
 async function sendTelegramMessage(env: Env, text: string) {
-  if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_CHAT_ID) {
-    console.warn('Telegram credentials not configured');
-    return;
-  }
   const url = `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`;
   try {
-    await fetch(url, {
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: env.TELEGRAM_CHAT_ID,
-        text: text,
-        parse_mode: 'Markdown'
-      })
+      body: JSON.stringify({ chat_id: env.TELEGRAM_CHAT_ID, text, parse_mode: 'HTML' })
     });
-  } catch (err) {
-    console.error('Telegram error:', err);
+    if (!res.ok) {
+      console.error("Telegram API Error:", await res.text());
+    }
+  } catch (e) {
+    console.error("Telegram error:", e);
   }
 }
 
@@ -326,15 +352,15 @@ async function handleClearAlerts(request: Request, env: Env): Promise<Response> 
       body = await request.json().catch(() => ({}));
     }
     
-    if (body.ids && Array.isArray(body.ids) && body.ids.length > 0) {
-      const placeholders = body.ids.map(() => '?').join(',');
-      await env.DB.prepare(`INSERT OR REPLACE INTO rsi_alerts_backup SELECT * FROM rsi_alerts WHERE id IN (${placeholders})`).bind(...body.ids).run();
-      await env.DB.prepare(`DELETE FROM rsi_alerts WHERE id IN (${placeholders})`).bind(...body.ids).run();
+    if (body.symbols && Array.isArray(body.symbols) && body.symbols.length > 0) {
+      const placeholders = body.symbols.map(() => '?').join(',');
+      await env.DB.prepare(`INSERT OR REPLACE INTO rsi_alerts_backup SELECT * FROM rsi_alerts WHERE symbol IN (${placeholders})`).bind(...body.symbols).run();
+      await env.DB.prepare(`DELETE FROM rsi_alerts WHERE symbol IN (${placeholders})`).bind(...body.symbols).run();
     } else if (body.clearAll === true) {
       await env.DB.prepare('INSERT OR REPLACE INTO rsi_alerts_backup SELECT * FROM rsi_alerts').run();
       await env.DB.prepare('DELETE FROM rsi_alerts').run();
     } else {
-      return jsonResponse({ error: 'Invalid request: must provide ids array or clearAll flag' }, 400);
+      return jsonResponse({ error: 'Invalid request: must provide symbols array or clearAll flag' }, 400);
     }
     return jsonResponse({ status: 'ok' });
   } catch (err: any) {

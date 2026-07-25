@@ -10,6 +10,7 @@ export type PriceProvider = 'binance-data' | 'binance-api' | 'bybit' | 'kucoin';
 export interface TickerDiscoveryResult {
   provider: PriceProvider;
   tickers: Ticker24h[];
+  errors?: string[];
 }
 
 const fetchOptions = {
@@ -249,4 +250,42 @@ export async function fetchKlines(
   }
 
   throw new Error(`Unsupported provider: ${provider}`);
+}
+
+export async function fetchKlinesBatch(
+  symbols: string[],
+  interval: string,
+  limit: number = 150,
+  provider: PriceProvider,
+  proxyUrl?: string
+): Promise<Record<string, number[]>> {
+  const results: Record<string, number[]> = {};
+  
+  if (proxyUrl && provider === 'binance-api') {
+    try {
+      const symStr = symbols.join(',');
+      const res = await fetch(`${proxyUrl}/api/binance?path=/batch-klines&symbols=${symStr}&interval=${interval}&limit=${limit}`, fetchOptions);
+      if (res.ok) {
+        const json: Record<string, any[][]> = await res.json() as Record<string, any[][]>;
+        for (const sym of Object.keys(json)) {
+          if (json[sym] && json[sym].length > 0) {
+            results[sym] = json[sym].map((k) => parseFloat(k[4]));
+          }
+        }
+        return results;
+      }
+    } catch (e) {
+      console.warn(`[Batch Proxy] failed, falling back to individual fetching...`, e);
+    }
+  }
+
+  // Fallback to individual fetching
+  const promises = symbols.map(async (symbol) => {
+    try {
+      results[symbol] = await fetchKlines(symbol, interval, limit, provider, proxyUrl);
+    } catch (e) {}
+  });
+  await Promise.all(promises);
+  
+  return results;
 }
