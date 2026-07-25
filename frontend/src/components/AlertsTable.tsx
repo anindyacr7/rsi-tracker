@@ -287,7 +287,7 @@ export function AlertsTable({ data, loading, onRowClick, onRefresh }: AlertsTabl
                       </span>
                     </div>
                     <button 
-                      onClick={(e) => handleBin(alerts.map(a => a.id), e)}
+                      onClick={(e) => handleBin(alerts.map(a => a.symbol), e)}
                       className="p-1.5 hover:text-error hover:bg-error/10 rounded-full transition-colors flex items-center justify-center text-on-surface-variant"
                       title="Delete all"
                     >
