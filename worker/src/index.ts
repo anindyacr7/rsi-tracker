@@ -12,6 +12,7 @@ export interface Env {
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_KEY?: string;
   VAPID_SUBJECT?: string;
+  BINANCE_PROXY_URL?: string;
 }
 
 const CORS_HEADERS: Record<string, string> = {
@@ -41,7 +42,7 @@ export default {
     }
     
     if (url.pathname === '/api/force-run' && request.method === 'POST') {
-      ctx.waitUntil(handleCron(env));
+      ctx.waitUntil(handleCron(env, true));
       return jsonResponse({ status: 'ok', message: 'Cron job manually triggered in the background' });
     }
     
@@ -119,29 +120,36 @@ export default {
   }
 };
 
-async function handleCron(env: Env) {
+async function handleCron(env: Env, fullScan: boolean = false) {
   try {
     const thresholdRecord = await env.DB.prepare("SELECT value FROM global_settings WHERE key = 'rsi_threshold'").first();
     const rsiThreshold = thresholdRecord ? parseFloat(thresholdRecord.value) : 75;
 
-    const { mcapMap } = await fetchMarketCaps(1, env.DB); // Use CMC key 1 and pass D1 DB for caching
-    const { provider, tickers: allTickers } = await fetchValidUSDTPairs();
+    // Use keyIndex 0 to match frontend or try both if one fails (undefined tries 0 then 1)
+    const { mcapMap } = await fetchMarketCaps(undefined, env.DB); 
+    const { provider, tickers: allTickers } = await fetchValidUSDTPairs(env.BINANCE_PROXY_URL);
 
-    // Filter tickers by CMC Top 250
+    // Filter tickers by CMC Top 200 to match frontend
     const tickers = allTickers.filter(t => {
       const rank = mcapMap.get(t.symbol.replace('USDT', ''))?.rank;
-      return rank && rank <= 250;
+      return rank && rank <= 200;
     });
 
-    const CHUNK_SIZE = 5;
+    // Check ALL 200 tokens every minute to catch intra-candle spikes!
+    // To avoid CPU time limits on Cloudflare Workers, we chunk the promises
+    // 200 tokens / 20 chunk size = 10 batches. 10 batches * 0.5s delay = 5 seconds execution time.
+    const CHUNK_SIZE = 20;
     for (let i = 0; i < tickers.length; i += CHUNK_SIZE) {
       const chunk = tickers.slice(i, i + CHUNK_SIZE);
       const promises = chunk.map(async (ticker) => {
         const symbol = ticker.symbol;
         try {
-          const closes = await fetchKlines(symbol, '15m', 150, provider);
+          const closes = await fetchKlines(symbol, '15m', 150, provider, env.BINANCE_PROXY_URL);
           if (closes.length > 14) {
             const rsi = calculateRSI(closes, 14);
+            if (symbol === 'WIFUSDT' || symbol === 'PENGUUSDT' || symbol === 'GRAMUSDT') {
+              console.log(`[DEBUG] ${symbol} 15m RSI: ${rsi}`);
+            }
             if (rsi !== null && rsi >= rsiThreshold) {
               await processAlert(env, ticker, rsi, mcapMap.get(symbol.replace('USDT', ''))?.rank);
             }
@@ -153,7 +161,7 @@ async function handleCron(env: Env) {
       await Promise.all(promises);
       
       if (i + CHUNK_SIZE < tickers.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
   } catch (err) {
