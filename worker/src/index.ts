@@ -142,7 +142,7 @@ export default {
   },
 
   async scheduled(event: any, env: Env, ctx: any) {
-    ctx.waitUntil(handleCron(env));
+    await handleCron(env);
   }
 };
 
