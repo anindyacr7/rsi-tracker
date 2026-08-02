@@ -261,7 +261,7 @@ export async function fetchKlinesBatch(
 ): Promise<Record<string, number[]>> {
   const results: Record<string, number[]> = {};
   
-  if (proxyUrl && provider === 'binance-api') {
+  if (proxyUrl && (provider === 'binance-api' || provider === 'binance-data')) {
     try {
       const symStr = symbols.join(',');
       const res = await fetch(`${proxyUrl}/api/binance?path=/batch-klines&symbols=${symStr}&interval=${interval}&limit=${limit}`, fetchOptions);
@@ -269,7 +269,12 @@ export async function fetchKlinesBatch(
         const json: Record<string, any[][]> = await res.json() as Record<string, any[][]>;
         for (const sym of Object.keys(json)) {
           if (json[sym] && json[sym].length > 0) {
-            results[sym] = json[sym].map((k) => parseFloat(k[4]));
+            results[sym] = json[sym].map((k) => {
+              if (Array.isArray(k)) {
+                return parseFloat(k[4]);
+              }
+              return parseFloat(k as unknown as string);
+            });
           }
         }
         return results;
@@ -279,13 +284,19 @@ export async function fetchKlinesBatch(
     }
   }
 
-  // Fallback to individual fetching
-  const promises = symbols.map(async (symbol) => {
-    try {
-      results[symbol] = await fetchKlines(symbol, interval, limit, provider, proxyUrl);
-    } catch (e) {}
-  });
-  await Promise.all(promises);
+  // Fallback to individual fetching with throttling (5 concurrent)
+  for (let i = 0; i < symbols.length; i += 5) {
+    const chunk = symbols.slice(i, i + 5);
+    const promises = chunk.map(async (symbol) => {
+      try {
+        results[symbol] = await fetchKlines(symbol, interval, limit, provider, proxyUrl);
+      } catch (e) {}
+    });
+    await Promise.all(promises);
+    if (i + 5 < symbols.length) {
+      await new Promise(r => setTimeout(r, 200));
+    }
+  }
   
   return results;
 }

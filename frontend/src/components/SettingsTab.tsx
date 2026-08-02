@@ -31,6 +31,9 @@ export function SettingsTab() {
   const [rsiThreshold, setRsiThreshold] = useState(75);
   const [isSavingThreshold, setIsSavingThreshold] = useState(false);
   
+  const [cronInterval, setCronInterval] = useState(1);
+  const [isSavingInterval, setIsSavingInterval] = useState(false);
+  
   const [pushStatus, setPushStatus] = useState<'default' | 'granted' | 'denied'>('default');
   const [isSubscribed, setIsSubscribed] = useState(false);
 
@@ -61,6 +64,9 @@ export function SettingsTab() {
           const data = await res.json();
           if (data.settings && data.settings['rsi_threshold']) {
             setRsiThreshold(parseFloat(data.settings['rsi_threshold']));
+          }
+          if (data.settings && data.settings['cron_interval']) {
+            setCronInterval(parseInt(data.settings['cron_interval'], 10));
           }
         }
       } catch (err) {
@@ -173,6 +179,27 @@ export function SettingsTab() {
     }
   };
 
+  const handleSaveInterval = async (val: number) => {
+    try {
+      setIsSavingInterval(true);
+      const apiUrl = import.meta.env.VITE_API_URL || '/api/scan';
+      const settingsUrl = apiUrl.replace('/scan', '/settings');
+      const res = await fetch(settingsUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'cron_interval', value: val })
+      });
+      if (res.ok) {
+        // success
+      }
+    } catch (err) {
+      console.error("Failed to save interval", err);
+      alert('Error saving interval');
+    } finally {
+      setIsSavingInterval(false);
+    }
+  };
+
 
 
   return (
@@ -226,6 +253,33 @@ export function SettingsTab() {
                 >
                   <span className={clsx("material-symbols-outlined", isSavingThreshold && "animate-spin")}>
                     {isSavingThreshold ? 'sync' : 'save'}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Cron Interval */}
+          <div className="pt-2 border-t border-white/5">
+            <p className="font-medium text-on-surface mb-1">Scan Interval (Minutes)</p>
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-sm text-on-surface-variant">How often the cron job executes</p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="1"
+                  max="60"
+                  value={cronInterval}
+                  onChange={(e) => setCronInterval(parseInt(e.target.value) || 1)}
+                  className="w-16 h-12 bg-surface-container-lowest border border-outline-variant rounded-lg text-center font-data-tabular focus:ring-1 focus:ring-primary focus:border-primary text-on-surface"
+                />
+                <button
+                  onClick={() => handleSaveInterval(cronInterval)}
+                  disabled={isSavingInterval}
+                  className="w-12 h-12 bg-surface-container-highest border border-outline-variant rounded-lg flex items-center justify-center text-primary-fixed hover:bg-primary/20 transition-colors disabled:opacity-50"
+                >
+                  <span className={clsx("material-symbols-outlined", isSavingInterval && "animate-spin")}>
+                    {isSavingInterval ? 'sync' : 'save'}
                   </span>
                 </button>
               </div>

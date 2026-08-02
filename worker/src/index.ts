@@ -89,7 +89,7 @@ export default {
 
           const tickers = allTickers.filter(t => {
             const rank = mcapMap.get(t.symbol.replace('USDT', ''))?.rank;
-            return rank && rank <= 200;
+            return rank && rank <= (env.BINANCE_PROXY_URL ? 200 : 10); // Limit to 10 for test if no proxy
           });
 
           const results: { symbol: string, rsi: number }[] = [];
@@ -142,20 +142,35 @@ export default {
   },
 
   async scheduled(event: any, env: Env, ctx: any) {
-    await handleCron(env);
+    ctx.waitUntil(handleCron(env));
   }
 };
 
 async function handleCron(env: Env, fullScan: boolean = false) {
   try {
+    const intervalRecord = await env.DB.prepare("SELECT value FROM global_settings WHERE key = 'cron_interval'").first();
+    const cronInterval = intervalRecord ? parseInt(intervalRecord.value as string, 10) : 1;
+
+    const lastRunRecord = await env.DB.prepare("SELECT value FROM global_settings WHERE key = 'last_cron_run_time'").first();
+    const lastRunTime = lastRunRecord ? parseInt(lastRunRecord.value as string, 10) : 0;
+    
+    const now = Date.now();
+    // Allow 10 seconds tolerance for cron triggers
+    if (now - lastRunTime < (cronInterval * 60 * 1000) - 10000 && !fullScan) {
+      return; // Skip execution, interval hasn't elapsed
+    }
+
+    // Update last run time immediately
+    await env.DB.prepare("INSERT OR REPLACE INTO global_settings (key, value, updated_at) VALUES ('last_cron_run_time', ?, ?)").bind(now.toString(), now).run();
+
     const thresholdRecord = await env.DB.prepare("SELECT value FROM global_settings WHERE key = 'rsi_threshold'").first();
-    const rsiThreshold = thresholdRecord ? parseFloat(thresholdRecord.value) : 75;
+    const rsiThreshold = thresholdRecord ? parseFloat(thresholdRecord.value as string) : 75;
 
     // Use keyIndex 0 to match frontend or try both if one fails (undefined tries 0 then 1)
     const { mcapMap } = await fetchMarketCaps(undefined, env.DB);
     const { provider, tickers: allTickers } = await fetchValidUSDTPairs(env.BINANCE_PROXY_URL);
 
-    // Filter tickers by CMC Top 200 to match frontend
+    // Filter tickers by CMC Top 200 to match frontend's desired limit
     const tickers = allTickers.filter(t => {
       const rank = mcapMap.get(t.symbol.replace('USDT', ''))?.rank;
       return rank && rank <= 200;
@@ -164,9 +179,25 @@ async function handleCron(env: Env, fullScan: boolean = false) {
     // Check ALL 200 tokens every minute to catch intra-candle spikes!
     // To avoid CPU time limits on Cloudflare Workers, we chunk the promises
     // 200 tokens / 20 chunk size = 10 batches. 10 batches * 0.5s delay = 5 seconds execution time.
+    let targetTickers = tickers;
+    if (!env.BINANCE_PROXY_URL) {
+      // Chunking mode to respect Cloudflare 50 subrequests limit
+      const CHUNK_LIMIT = 40;
+      const indexRecord = await env.DB.prepare("SELECT value FROM global_settings WHERE key = 'cron_scan_index'").first();
+      let currentIndex = indexRecord ? parseInt(indexRecord.value as string, 10) : 0;
+      if (isNaN(currentIndex) || currentIndex >= tickers.length) currentIndex = 0;
+      
+      targetTickers = tickers.slice(currentIndex, currentIndex + CHUNK_LIMIT);
+      
+      let nextIndex = currentIndex + CHUNK_LIMIT;
+      if (nextIndex >= tickers.length) nextIndex = 0;
+      
+      await env.DB.prepare("INSERT OR REPLACE INTO global_settings (key, value, updated_at) VALUES ('cron_scan_index', ?, ?)").bind(nextIndex.toString(), Date.now()).run();
+    }
+
     const CHUNK_SIZE = 20;
-    for (let i = 0; i < tickers.length; i += CHUNK_SIZE) {
-      const chunk = tickers.slice(i, i + CHUNK_SIZE);
+    for (let i = 0; i < targetTickers.length; i += CHUNK_SIZE) {
+      const chunk = targetTickers.slice(i, i + CHUNK_SIZE);
       const chunkSymbols = chunk.map(t => t.symbol);
 
       const batchResults = await fetchKlinesBatch(chunkSymbols, '15m', 150, provider, env.BINANCE_PROXY_URL);
@@ -190,7 +221,7 @@ async function handleCron(env: Env, fullScan: boolean = false) {
         }
       }
 
-      if (i + CHUNK_SIZE < tickers.length) {
+      if (i + CHUNK_SIZE < targetTickers.length) {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
     }

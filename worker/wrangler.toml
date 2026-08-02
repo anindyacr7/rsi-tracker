@@ -7,9 +7,13 @@ compatibility_flags = ["nodejs_compat"]
 enabled = true
 
 [triggers]
-crons = ["* * * * *"]
+crons = ["*/5 * * * *"]
 
 [[d1_databases]]
 binding = "DB"
 database_name = "rsi_alerts_db"
 database_id = "9242f4b8-54fc-4785-beaa-963e0e22746e"
+
+[vars]
+# Replace this with your public Vercel URL (e.g., https://rsi-tracker-xyz.vercel.app)
+BINANCE_PROXY_URL = "https://rsi-tracker-seven.vercel.app"

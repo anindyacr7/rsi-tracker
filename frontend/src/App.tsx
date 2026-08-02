@@ -109,9 +109,10 @@ export default function App() {
       const tickers = allTickers.filter(t => mcapMap.has(t.symbol.replace('USDT', '')));
 
       // 4. Fetch Klines for Top 200 only
-      const rsiSymbols = tickers
+      const targetTickers = tickers
         .filter(t => {
-          const rank = mcapMap.get(t.symbol.replace('USDT', ''))?.rank;
+          const symbolWithoutUSDT = t.symbol.replace('USDT', '');
+          const rank = mcapMap.get(symbolWithoutUSDT)?.rank;
           return rank && rank <= 200;
         })
         .map(t => t.symbol);
@@ -121,8 +122,8 @@ export default function App() {
 
       // Batch requests locally in the browser to avoid blocking
       const CHUNK_SIZE = 50; // 150 subrequests per chunk
-      for (let i = 0; i < rsiSymbols.length; i += CHUNK_SIZE) {
-        const chunk = rsiSymbols.slice(i, i + CHUNK_SIZE);
+      for (let i = 0; i < targetTickers.length; i += CHUNK_SIZE) {
+        const chunk = targetTickers.slice(i, i + CHUNK_SIZE);
         const promises = chunk.flatMap(symbol =>
           timeframes.map(async tf => {
             const closes = await fetchKlines(symbol, tf);
@@ -251,7 +252,7 @@ export default function App() {
   const currentSort = activeTab === 'rsi' ? rsiSort : moversSort;
 
   return (
-    <div className="font-body-base text-body-base bg-background min-h-screen flex flex-col overflow-hidden pb-[64px] md:pb-0 pt-[64px] text-on-background">
+    <div className="font-body-base text-body-base bg-background min-h-screen flex flex-col overflow-hidden pb-[80px] pt-[64px] text-on-background">
 
       <TopAppBar 
         loading={loading} 

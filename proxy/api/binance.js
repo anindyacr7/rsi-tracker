@@ -1,3 +1,5 @@
+let klinesCache = {};
+
 export default async function handler(req, res) {
   // CORS Headers for browser access if needed (though CF worker will call it)
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -23,11 +25,45 @@ export default async function handler(req, res) {
       const { interval = '15m', limit = 150 } = query;
       
       const promises = symbolArray.map(async (sym) => {
-        const url = `https://api.binance.com/api/v3/klines?symbol=${sym}&interval=${interval}&limit=${limit}`;
+        const cacheKey = `${sym}-${interval}`;
+        let cached = klinesCache[cacheKey];
+        let url = `https://api.binance.com/api/v3/klines?symbol=${sym}&interval=${interval}&limit=${limit}`;
+        
+        // If we have a recent cache (less than 1 hour old), just fetch the latest 2 candles to save Origin bandwidth
+        if (cached && Date.now() - cached.timestamp < 60 * 60 * 1000) {
+          url = `https://api.binance.com/api/v3/klines?symbol=${sym}&interval=${interval}&limit=2`;
+        }
+
         try {
-          const fetchRes = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+          const fetchRes = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0', 'Accept-Encoding': 'gzip, deflate, br' } });
           if (fetchRes.ok) {
-            results[sym] = await fetchRes.json();
+            const data = await fetchRes.json();
+            let finalData = data;
+
+            if (cached && Date.now() - cached.timestamp < 60 * 60 * 1000) {
+              for (const newCandle of data) {
+                const newTime = newCandle[0];
+                const existingIndex = cached.klines.findIndex(c => c[0] === newTime);
+                if (existingIndex !== -1) {
+                  cached.klines[existingIndex] = newCandle;
+                } else {
+                  cached.klines.push(newCandle);
+                }
+              }
+              if (cached.klines.length > limit) {
+                cached.klines = cached.klines.slice(-limit);
+              }
+              finalData = cached.klines;
+              cached.timestamp = Date.now();
+            } else {
+              klinesCache[cacheKey] = {
+                timestamp: Date.now(),
+                klines: finalData
+              };
+            }
+
+            // Optimize payload: only return close prices (index 4) to save Vercel bandwidth
+            results[sym] = finalData.map(k => k[4]);
           }
         } catch(e) {}
       });
@@ -48,6 +84,7 @@ export default async function handler(req, res) {
       method: req.method,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+        'Accept-Encoding': 'gzip, deflate, br'
       },
     });
 
