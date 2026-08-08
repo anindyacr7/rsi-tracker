@@ -15,6 +15,9 @@ export function AlertsTable({ data, loading, onRowClick, onRefresh }: AlertsTabl
   const [forceRunLoading, setForceRunLoading] = useState(false);
   const [testNotificationLoading, setTestNotificationLoading] = useState(false);
   const [restoreAlertsLoading, setRestoreAlertsLoading] = useState(false);
+  const [showScanLogs, setShowScanLogs] = useState(false);
+  const [scanLogs, setScanLogs] = useState<any[]>([]);
+  const [scanLogsLoading, setScanLogsLoading] = useState(false);
 
   const { activeAlerts, archivedAlertsByDate } = useMemo(() => {
     const now = Date.now();
@@ -78,11 +81,29 @@ export function AlertsTable({ data, loading, onRowClick, onRefresh }: AlertsTabl
       const res = await fetch(forceUrl, { method: 'POST' });
       if (!res.ok) throw new Error('Failed to force run cron');
       alert('Cron job successfully triggered! Check your notifications in a few moments.');
-    } catch (err: any) {
-      console.error(err);
-      alert('Error triggering cron job');
+    } catch (e: any) {
+      console.error(e);
+      alert(e.message || 'Failed to trigger cron');
     } finally {
       setForceRunLoading(false);
+    }
+  };
+
+  const handleOpenScanLogs = async () => {
+    setShowScanLogs(true);
+    setScanLogsLoading(true);
+    try {
+      const scanApiUrl = import.meta.env.VITE_API_URL || '/api/scan';
+      const apiUrl = scanApiUrl.replace('/scan', '/scan-logs');
+      const res = await fetch(apiUrl);
+      if (res.ok) {
+        const json = await res.json();
+        setScanLogs(json);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setScanLogsLoading(false);
     }
   };
 
@@ -249,7 +270,15 @@ export function AlertsTable({ data, loading, onRowClick, onRefresh }: AlertsTabl
           <span className={clsx("material-symbols-outlined text-[16px] sm:text-[18px]", forceRunLoading && "animate-spin")}>
             {forceRunLoading ? 'sync' : 'bolt'}
           </span>
-          <span><span className="max-[450px]:hidden">Force </span>Scan</span>
+          <span>Force<span className="max-[450px]:hidden"> Scan</span></span>
+        </button>
+
+        <button
+          onClick={handleOpenScanLogs}
+          className="flex items-center gap-1 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg border border-outline-variant hover:bg-surface-variant transition-colors text-on-surface font-medium text-[11px] sm:text-sm whitespace-nowrap ml-auto"
+        >
+          <span className="material-symbols-outlined text-[16px] sm:text-[18px] text-tertiary">monitor_heart</span>
+          <span>Scanner<span className="max-[450px]:hidden"> Health</span></span>
         </button>
       </div>
 
@@ -303,6 +332,51 @@ export function AlertsTable({ data, loading, onRowClick, onRefresh }: AlertsTabl
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Modal for Recent Scans */}
+      {showScanLogs && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-surface-container-high rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-outline-variant/30 animate-in zoom-in-95 duration-200">
+            <div className="p-4 border-b border-outline-variant/30 flex justify-between items-center bg-surface">
+              <h3 className="font-semibold text-lg flex items-center gap-2">
+                <span className="material-symbols-outlined text-tertiary">monitor_heart</span>
+                Scanner Health
+              </h3>
+              <button onClick={() => setShowScanLogs(false)} className="p-1 hover:bg-surface-variant rounded-full transition-colors">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div className="p-4 max-h-[60vh] overflow-y-auto">
+              {scanLogsLoading ? (
+                <div className="flex justify-center p-8">
+                  <span className="material-symbols-outlined animate-spin text-3xl text-primary">sync</span>
+                </div>
+              ) : scanLogs.length === 0 ? (
+                <div className="text-center p-8 text-on-surface-variant">No recent scans found.</div>
+              ) : (
+                <div className="space-y-3">
+                  {scanLogs.map((log: any) => (
+                    <div key={log.id} className="flex justify-between items-center p-3 bg-surface rounded-xl border border-outline-variant/20">
+                      <div>
+                        <div className="font-semibold">{log.top_symbol.replace('USDT', '')}</div>
+                        <div className="text-xs text-on-surface-variant mt-1">
+                          {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+                      <div className={clsx("px-2.5 py-1 rounded-full text-xs font-bold", getRsiClass(log.top_rsi))}>
+                        {log.top_rsi.toFixed(1)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="p-3 bg-surface-container-highest border-t border-outline-variant/30 text-xs text-center text-on-surface-variant">
+              Showing the top RSI coin for the last 10 executions.
+            </div>
           </div>
         </div>
       )}

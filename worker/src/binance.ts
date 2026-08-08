@@ -19,7 +19,7 @@ const fetchOptions = {
   }
 };
 
-export async function fetchValidUSDTPairs(proxyUrl?: string, dataSource: string = 'binance'): Promise<TickerDiscoveryResult> {
+export async function fetchValidUSDTPairs(proxyUrl?: string, dataSource: string = 'binance', targetSymbols?: string[]): Promise<TickerDiscoveryResult> {
   let tickers: Ticker24h[] = [];
   let provider: PriceProvider = dataSource === 'bybit' ? 'bybit' : 'binance-data';
 
@@ -28,7 +28,10 @@ export async function fetchValidUSDTPairs(proxyUrl?: string, dataSource: string 
   // 1. Try Binance Proxy if provided (only if binance data source)
   if (dataSource === 'binance' && proxyUrl) {
     try {
-      const res = await fetch(`${proxyUrl}/api/binance?path=/api/v3/ticker/24hr`, fetchOptions);
+      const urlPath = targetSymbols && targetSymbols.length > 0 
+        ? `/api/v3/ticker/24hr?symbols=${JSON.stringify(targetSymbols)}` 
+        : `/api/v3/ticker/24hr`;
+      const res = await fetch(`${proxyUrl}/api/binance?path=${encodeURIComponent(urlPath)}`, fetchOptions);
       if (res.ok) {
         tickers = await res.json() as Ticker24h[];
         provider = 'binance-api';
@@ -41,9 +44,13 @@ export async function fetchValidUSDTPairs(proxyUrl?: string, dataSource: string 
   }
 
   // 2. Try Binance Data API
-  if (tickers.length === 0) {
+  if (tickers.length === 0 && dataSource === 'binance') {
     try {
-      const res = await fetch('https://data-api.binance.vision/api/v3/ticker/24hr', fetchOptions);
+      const urlPath = targetSymbols && targetSymbols.length > 0 
+        ? `symbols=${JSON.stringify(targetSymbols)}` 
+        : ``;
+      const url = `https://data-api.binance.vision/api/v3/ticker/24hr${urlPath ? '?' + urlPath : ''}`;
+      const res = await fetch(url, fetchOptions);
       if (res.ok) {
         tickers = await res.json() as Ticker24h[];
         provider = 'binance-data';
@@ -56,7 +63,7 @@ export async function fetchValidUSDTPairs(proxyUrl?: string, dataSource: string 
   }
 
   // 3. Try Binance API (rotating subdomains)
-  if (tickers.length === 0) {
+  if (tickers.length === 0 && dataSource === 'binance') {
     const bases = [
       'https://api.binance.com',
       'https://api1.binance.com',
@@ -64,9 +71,14 @@ export async function fetchValidUSDTPairs(proxyUrl?: string, dataSource: string 
       'https://api3.binance.com',
       'https://api4.binance.com'
     ];
+    
+    const urlPath = targetSymbols && targetSymbols.length > 0 
+      ? `/api/v3/ticker/24hr?symbols=${JSON.stringify(targetSymbols)}` 
+      : `/api/v3/ticker/24hr`;
+      
     for (const base of bases) {
       try {
-        const res = await fetch(`${base}/api/v3/ticker/24hr`, fetchOptions);
+        const res = await fetch(`${base}${urlPath}`, fetchOptions);
         if (res.ok) {
           tickers = await res.json() as Ticker24h[];
           provider = 'binance-api';

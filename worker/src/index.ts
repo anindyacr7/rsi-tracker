@@ -85,12 +85,17 @@ export default {
 
         try {
           const { mcapMap } = await fetchMarketCaps(undefined, env.DB);
-          const { provider, tickers: allTickers } = await fetchValidUSDTPairs(env.BINANCE_PROXY_URL, 'binance');
+          const tokenLimit = 200;
+          const targetSymbols = Array.from(mcapMap.entries())
+            .filter(([_, data]) => data.rank <= tokenLimit + 50)
+            .map(([base]) => `${base}USDT`);
+
+          const { provider, tickers: allTickers } = await fetchValidUSDTPairs(env.BINANCE_PROXY_URL, 'binance', targetSymbols);
           activeProvider = provider;
 
           const tickers = allTickers.filter(t => {
             const rank = mcapMap.get(t.symbol.replace('USDT', ''))?.rank;
-            return rank && rank <= 10; // Limit to 10 for test
+            return rank && rank <= tokenLimit; // Match cron scan
           });
 
           const results: { symbol: string, rsi: number }[] = [];
@@ -139,6 +144,15 @@ export default {
       }
     }
 
+    if (url.pathname === '/api/scan-logs' && request.method === 'GET') {
+      try {
+        const result = await env.DB.prepare('SELECT * FROM scan_logs ORDER BY timestamp DESC LIMIT 10').all();
+        return jsonResponse(result.results);
+      } catch (e: any) {
+        return jsonResponse({ error: e.message }, 500);
+      }
+    }
+
     return jsonResponse({ error: 'Not Found' }, 404);
   },
 
@@ -176,11 +190,15 @@ async function handleCron(env: Env, fullScan: boolean = false) {
 
     // Use keyIndex 0 to match frontend or try both if one fails (undefined tries 0 then 1)
     const { mcapMap } = await fetchMarketCaps(undefined, env.DB);
-    const { provider, tickers: allTickers } = await fetchValidUSDTPairs(env.BINANCE_PROXY_URL, dataSource);
+    const tokenLimit = dataSource === 'binance' ? 200 : 100;
+    
+    const targetSymbols = Array.from(mcapMap.entries())
+      .filter(([_, data]) => data.rank <= tokenLimit + 50)
+      .map(([base]) => `${base}USDT`);
+
+    const { provider, tickers: allTickers } = await fetchValidUSDTPairs(env.BINANCE_PROXY_URL, dataSource, targetSymbols);
     console.log(`[handleCron] Fetched ${allTickers.length} tickers from ${provider}`);
 
-    const tokenLimit = dataSource === 'binance' ? 200 : 100;
-    // Filter tickers by CMC Top N to match frontend's desired limit
     const tickers = allTickers.filter(t => {
       const rank = mcapMap.get(t.symbol.replace('USDT', ''))?.rank;
       return rank && rank <= tokenLimit;
@@ -209,6 +227,9 @@ async function handleCron(env: Env, fullScan: boolean = false) {
     const CHUNK_SIZE = 20;
     let proxyToggle = false;
     
+    let maxRsiSymbol = '';
+    let maxRsiValue = -1;
+    
     for (let i = 0; i < targetTickers.length; i += CHUNK_SIZE) {
       const chunk = targetTickers.slice(i, i + CHUNK_SIZE);
       const chunkSymbols = chunk.map(t => t.symbol);
@@ -230,6 +251,10 @@ async function handleCron(env: Env, fullScan: boolean = false) {
           const closes = batchResults[symbol];
           if (closes && closes.length > 14) {
             const rsi = calculateRSI(closes, 14);
+            if (rsi !== null && rsi > maxRsiValue) {
+              maxRsiValue = rsi;
+              maxRsiSymbol = symbol;
+            }
             if (symbol === 'WIFUSDT' || symbol === 'PENGUUSDT' || symbol === 'GRAMUSDT') {
               console.log(`[DEBUG] ${symbol} RSI: ${rsi}`);
             }
@@ -249,6 +274,10 @@ async function handleCron(env: Env, fullScan: boolean = false) {
       if (i + CHUNK_SIZE < targetTickers.length) {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
+    }
+    
+    if (maxRsiSymbol) {
+       await env.DB.prepare(`INSERT INTO scan_logs (timestamp, top_symbol, top_rsi) VALUES (?, ?, ?)`).bind(Date.now(), maxRsiSymbol, maxRsiValue).run();
     }
   } catch (err) {
     console.error('Cron error:', err);

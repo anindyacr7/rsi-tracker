@@ -1,0 +1,10 @@
+I just pushed the fix to optimize `test-notification`!
+
+I also realized EXACTLY why you exhausted your 10GB Vercel limit so fast! 
+When the scanner looks for active tokens, it calls Binance's `/api/v3/ticker/24hr` endpoint. That endpoint returns data for ALL 2,500+ coins on Binance. Because it's so massive, a single request is **2.5MB**. 
+
+Since your cron runs every 1 to 5 minutes, it has been downloading 2.5MB over and over again. That's over 100MB per hour, which equals **~75GB per month**! 
+
+To completely fix this and bring your usage down to nearly 0, I can rewrite the code to only ask Binance for the specific 200 symbols we care about. 
+
+Would you like me to implement this bandwidth fix?
