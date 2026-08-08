@@ -149,6 +149,7 @@ export default {
 
 async function handleCron(env: Env, fullScan: boolean = false) {
   try {
+    console.log(`[handleCron] Started execution. fullScan=${fullScan}`);
     const intervalRecord = await env.DB.prepare("SELECT value FROM global_settings WHERE key = 'cron_interval'").first();
     const cronInterval = intervalRecord ? parseInt(intervalRecord.value as string, 10) : 1;
 
@@ -158,9 +159,11 @@ async function handleCron(env: Env, fullScan: boolean = false) {
     const now = Date.now();
     // Allow 10 seconds tolerance for cron triggers
     if (now - lastRunTime < (cronInterval * 60 * 1000) - 10000 && !fullScan) {
+      console.log(`[handleCron] Skipping execution, interval hasn't elapsed.`);
       return; // Skip execution, interval hasn't elapsed
     }
 
+    console.log(`[handleCron] Proceeding with execution.`);
     // Update last run time immediately
     await env.DB.prepare("INSERT OR REPLACE INTO global_settings (key, value, updated_at) VALUES ('last_cron_run_time', ?, ?)").bind(now.toString(), now).run();
 
@@ -169,10 +172,12 @@ async function handleCron(env: Env, fullScan: boolean = false) {
 
     const dataSourceRecord = await env.DB.prepare("SELECT value FROM global_settings WHERE key = 'data_source'").first();
     const dataSource = dataSourceRecord ? dataSourceRecord.value as string : 'binance';
+    console.log(`[handleCron] Config loaded. Threshold=${rsiThreshold}, Source=${dataSource}`);
 
     // Use keyIndex 0 to match frontend or try both if one fails (undefined tries 0 then 1)
     const { mcapMap } = await fetchMarketCaps(undefined, env.DB);
     const { provider, tickers: allTickers } = await fetchValidUSDTPairs(env.BINANCE_PROXY_URL, dataSource);
+    console.log(`[handleCron] Fetched ${allTickers.length} tickers from ${provider}`);
 
     const tokenLimit = dataSource === 'binance' ? 150 : 100;
     // Filter tickers by CMC Top N to match frontend's desired limit
@@ -180,6 +185,7 @@ async function handleCron(env: Env, fullScan: boolean = false) {
       const rank = mcapMap.get(t.symbol.replace('USDT', ''))?.rank;
       return rank && rank <= tokenLimit;
     });
+    console.log(`[handleCron] Filtered to ${tickers.length} target tickers (Limit <= ${tokenLimit})`);
 
     // Check ALL 200 tokens every minute to catch intra-candle spikes!
     // To avoid CPU time limits on Cloudflare Workers, we chunk the promises
@@ -213,8 +219,10 @@ async function handleCron(env: Env, fullScan: boolean = false) {
         proxyToUse = proxyToggle ? env.BINANCE_PROXY_URL_2 : env.BINANCE_PROXY_URL;
         proxyToggle = !proxyToggle;
       }
+      console.log(`[handleCron] Batch [${i}-${i+CHUNK_SIZE}], targetting ${proxyToUse}`);
 
       const batchResults = await fetchKlinesBatch(chunkSymbols, '15m', 150, provider, proxyToUse);
+      console.log(`[handleCron] Batch fetched klines for ${Object.keys(batchResults).length} symbols.`);
 
       for (const ticker of chunk) {
         const symbol = ticker.symbol;
@@ -227,8 +235,11 @@ async function handleCron(env: Env, fullScan: boolean = false) {
             }
             if (rsi !== null && rsi >= rsiThreshold) {
               const rank = mcapMap.get(symbol.replace('USDT', ''))?.rank;
+              console.log(`[handleCron] High RSI detected: ${symbol} = ${rsi} (Rank #${rank}). Processing alert...`);
               await processAlert(env, ticker, rsi, rank);
             }
+          } else {
+             if (symbol === 'PENGUUSDT') console.log(`[DEBUG] PENGUUSDT missing closes or < 14. Closes length: ${closes?.length}`);
           }
         } catch (e) {
           console.error(`Error processing ${symbol}:`, e);
@@ -259,7 +270,7 @@ async function processAlert(env: Env, ticker: any, rsi: number, rank?: number) {
   if (!existing || now - (existing.created_at as number) > 48 * 60 * 60 * 1000) {
     // New or expired, insert new
     await env.DB.prepare(`
-      INSERT INTO rsi_alerts (symbol, first_hit_time, first_rsi_value, max_rsi_value, percent_move_24h, mcap_rank, last_notified_at, created_at, is_deleted)
+      INSERT OR REPLACE INTO rsi_alerts (symbol, first_hit_time, first_rsi_value, max_rsi_value, percent_move_24h, mcap_rank, last_notified_at, created_at, is_deleted)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
     `).bind(symbol, now, rsi, rsi, percentMove24h, rank || null, now, now).run();
 
