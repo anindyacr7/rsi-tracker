@@ -286,13 +286,13 @@ export function AlertsTable({ data, loading, activeMode, onModeChange, onRowClic
 
       {/* Subtabs for Overshoot/Undershoot */}
       <div className="flex justify-center mt-2 max-w-3xl mx-auto w-full px-2">
-        <div className="flex bg-surface-container-highest rounded-xl p-1 shadow-inner w-full max-w-sm border border-outline-variant/30 gap-1">
+        <div className="flex bg-surface-container-highest rounded-xl p-1 shadow-inner w-full border border-outline-variant/30 gap-1">
           <button
             onClick={() => onModeChange('overshoot')}
             className={clsx(
               "flex-1 py-1.5 px-4 text-sm font-medium rounded-lg transition-all duration-200 flex items-center justify-center",
               activeMode === 'overshoot'
-                ? "bg-error text-on-error shadow-sm"
+                ? "bg-[#ff5352] text-white shadow-sm"
                 : "text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50"
             )}
           >
@@ -303,7 +303,7 @@ export function AlertsTable({ data, loading, activeMode, onModeChange, onRowClic
             className={clsx(
               "flex-1 py-1.5 px-4 text-sm font-medium rounded-lg transition-all duration-200 flex items-center justify-center",
               activeMode === 'undershoot'
-                ? "bg-secondary text-on-secondary shadow-sm"
+                ? "bg-[#42e091] text-[#11131b] shadow-sm font-bold"
                 : "text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50"
             )}
           >
