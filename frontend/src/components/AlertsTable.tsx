@@ -340,10 +340,11 @@ export function AlertsTable({ data, loading, onRowClick, onRefresh }: AlertsTabl
       {showScanLogs && (
         <div 
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200"
-          onClick={() => setShowScanLogs(false)}
+          onMouseDown={() => setShowScanLogs(false)}
         >
           <div 
             className="bg-surface-container-high rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-outline-variant/30 animate-in zoom-in-95 duration-200"
+            onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-4 border-b border-outline-variant/30 flex justify-between items-center bg-surface">

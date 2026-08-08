@@ -29,11 +29,7 @@ export async function fetchValidUSDTPairs(proxyUrl?: string, dataSource: string 
   if (dataSource === 'binance' && proxyUrl) {
     try {
       const urlPath = `/api/v3/ticker/24hr`;
-      const queryParams = targetSymbols && targetSymbols.length > 0 
-        ? `?path=${encodeURIComponent(urlPath)}&filterSymbols=${targetSymbols.join(',')}`
-        : `?path=${encodeURIComponent(urlPath)}`;
-        
-      const res = await fetch(`${proxyUrl}/api/binance${queryParams}`, fetchOptions);
+      const res = await fetch(`${proxyUrl}/api/binance?path=${encodeURIComponent(urlPath)}`, fetchOptions);
       if (res.ok) {
         tickers = await res.json() as Ticker24h[];
         provider = 'binance-api';
