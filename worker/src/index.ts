@@ -13,6 +13,7 @@ export interface Env {
   VAPID_PRIVATE_KEY?: string;
   VAPID_SUBJECT?: string;
   BINANCE_PROXY_URL?: string;
+  BINANCE_PROXY_URL_2?: string;
 }
 
 const CORS_HEADERS: Record<string, string> = {
@@ -84,12 +85,12 @@ export default {
 
         try {
           const { mcapMap } = await fetchMarketCaps(undefined, env.DB);
-          const { provider, tickers: allTickers } = await fetchValidUSDTPairs(env.BINANCE_PROXY_URL);
+          const { provider, tickers: allTickers } = await fetchValidUSDTPairs(env.BINANCE_PROXY_URL, 'binance');
           activeProvider = provider;
 
           const tickers = allTickers.filter(t => {
             const rank = mcapMap.get(t.symbol.replace('USDT', ''))?.rank;
-            return rank && rank <= (env.BINANCE_PROXY_URL ? 200 : 10); // Limit to 10 for test if no proxy
+            return rank && rank <= 10; // Limit to 10 for test
           });
 
           const results: { symbol: string, rsi: number }[] = [];
@@ -166,23 +167,27 @@ async function handleCron(env: Env, fullScan: boolean = false) {
     const thresholdRecord = await env.DB.prepare("SELECT value FROM global_settings WHERE key = 'rsi_threshold'").first();
     const rsiThreshold = thresholdRecord ? parseFloat(thresholdRecord.value as string) : 75;
 
+    const dataSourceRecord = await env.DB.prepare("SELECT value FROM global_settings WHERE key = 'data_source'").first();
+    const dataSource = dataSourceRecord ? dataSourceRecord.value as string : 'binance';
+
     // Use keyIndex 0 to match frontend or try both if one fails (undefined tries 0 then 1)
     const { mcapMap } = await fetchMarketCaps(undefined, env.DB);
-    const { provider, tickers: allTickers } = await fetchValidUSDTPairs(env.BINANCE_PROXY_URL);
+    const { provider, tickers: allTickers } = await fetchValidUSDTPairs(env.BINANCE_PROXY_URL, dataSource);
 
-    // Filter tickers by CMC Top 200 to match frontend's desired limit
+    const tokenLimit = dataSource === 'binance' ? 150 : 100;
+    // Filter tickers by CMC Top N to match frontend's desired limit
     const tickers = allTickers.filter(t => {
       const rank = mcapMap.get(t.symbol.replace('USDT', ''))?.rank;
-      return rank && rank <= 200;
+      return rank && rank <= tokenLimit;
     });
 
     // Check ALL 200 tokens every minute to catch intra-candle spikes!
     // To avoid CPU time limits on Cloudflare Workers, we chunk the promises
-    // 200 tokens / 20 chunk size = 10 batches. 10 batches * 0.5s delay = 5 seconds execution time.
     let targetTickers = tickers;
-    if (!env.BINANCE_PROXY_URL) {
+    if (dataSource === 'bybit') {
       // Chunking mode to respect Cloudflare 50 subrequests limit
-      const CHUNK_LIMIT = 40;
+      // 35 tokens per minute => completes 100 tokens in ~3 minutes
+      const CHUNK_LIMIT = 35;
       const indexRecord = await env.DB.prepare("SELECT value FROM global_settings WHERE key = 'cron_scan_index'").first();
       let currentIndex = indexRecord ? parseInt(indexRecord.value as string, 10) : 0;
       if (isNaN(currentIndex) || currentIndex >= tickers.length) currentIndex = 0;
@@ -196,11 +201,20 @@ async function handleCron(env: Env, fullScan: boolean = false) {
     }
 
     const CHUNK_SIZE = 20;
+    let proxyToggle = false;
+    
     for (let i = 0; i < targetTickers.length; i += CHUNK_SIZE) {
       const chunk = targetTickers.slice(i, i + CHUNK_SIZE);
       const chunkSymbols = chunk.map(t => t.symbol);
 
-      const batchResults = await fetchKlinesBatch(chunkSymbols, '15m', 150, provider, env.BINANCE_PROXY_URL);
+      // Load balance between dual Vercel proxies if both are provided
+      let proxyToUse = env.BINANCE_PROXY_URL;
+      if (env.BINANCE_PROXY_URL_2 && dataSource === 'binance') {
+        proxyToUse = proxyToggle ? env.BINANCE_PROXY_URL_2 : env.BINANCE_PROXY_URL;
+        proxyToggle = !proxyToggle;
+      }
+
+      const batchResults = await fetchKlinesBatch(chunkSymbols, '15m', 150, provider, proxyToUse);
 
       for (const ticker of chunk) {
         const symbol = ticker.symbol;

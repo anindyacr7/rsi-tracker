@@ -19,14 +19,14 @@ const fetchOptions = {
   }
 };
 
-export async function fetchValidUSDTPairs(proxyUrl?: string): Promise<TickerDiscoveryResult> {
+export async function fetchValidUSDTPairs(proxyUrl?: string, dataSource: string = 'binance'): Promise<TickerDiscoveryResult> {
   let tickers: Ticker24h[] = [];
-  let provider: PriceProvider = 'binance-data';
+  let provider: PriceProvider = dataSource === 'bybit' ? 'bybit' : 'binance-data';
 
   let errors: string[] = [];
 
-  // 1. Try Binance Proxy if provided
-  if (proxyUrl) {
+  // 1. Try Binance Proxy if provided (only if binance data source)
+  if (dataSource === 'binance' && proxyUrl) {
     try {
       const res = await fetch(`${proxyUrl}/api/binance?path=/api/v3/ticker/24hr`, fetchOptions);
       if (res.ok) {
@@ -100,10 +100,11 @@ export async function fetchValidUSDTPairs(proxyUrl?: string): Promise<TickerDisc
     } catch (e) {}
   }
 
-  // 4. Fallback to Bybit
-  if (tickers.length === 0) {
+  // 4. Try Bybit (if data source is bybit, or as a last fallback)
+  if (tickers.length === 0 && (dataSource === 'bybit' || provider === 'binance-data')) {
     try {
-      const res = await fetch('https://api.bybit.com/v5/market/tickers?category=linear');
+      // Use spot category for Bybit as requested in the plan
+      const res = await fetch('https://api.bybit.com/v5/market/tickers?category=spot');
       if (res.ok) {
         const json: any = await res.json();
         if (json.retCode === 0 && json.result && json.result.list) {
@@ -225,11 +226,12 @@ export async function fetchKlines(
 
   if (provider === 'bybit') {
     const bybitInterval = interval.replace('m', '');
-    const res = await fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${symbol}&interval=${bybitInterval}&limit=${limit}`);
+    const res = await fetch(`https://api.bybit.com/v5/market/kline?category=spot&symbol=${symbol}&interval=${bybitInterval}&limit=${limit}`);
     if (!res.ok) throw new Error(`Bybit API error: ${res.status}`);
     const json: any = await res.json();
     if (json.retCode === 0 && json.result && json.result.list) {
       const data = json.result.list;
+      // Bybit returns newest first, so we reverse it to match Binance's oldest-first format
       return data.map((k: any) => parseFloat(k[4])).reverse();
     }
     throw new Error(`Bybit API malformed data: ${JSON.stringify(json)}`);

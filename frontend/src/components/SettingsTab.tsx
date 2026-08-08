@@ -34,6 +34,9 @@ export function SettingsTab() {
   const [cronInterval, setCronInterval] = useState(1);
   const [isSavingInterval, setIsSavingInterval] = useState(false);
   
+  const [dataSource, setDataSource] = useState('binance');
+  const [isSavingDataSource, setIsSavingDataSource] = useState(false);
+  
   const [pushStatus, setPushStatus] = useState<'default' | 'granted' | 'denied'>('default');
   const [isSubscribed, setIsSubscribed] = useState(false);
 
@@ -67,6 +70,9 @@ export function SettingsTab() {
           }
           if (data.settings && data.settings['cron_interval']) {
             setCronInterval(parseInt(data.settings['cron_interval'], 10));
+          }
+          if (data.settings && data.settings['data_source']) {
+            setDataSource(data.settings['data_source']);
           }
         }
       } catch (err) {
@@ -200,6 +206,29 @@ export function SettingsTab() {
     }
   };
 
+  const handleSaveDataSource = async (val: string) => {
+    try {
+      setIsSavingDataSource(true);
+      setDataSource(val);
+      const apiUrl = import.meta.env.VITE_API_URL || '/api/scan';
+      const settingsUrl = apiUrl.replace('/scan', '/settings');
+      const res = await fetch(settingsUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'data_source', value: val })
+      });
+      if (res.ok) {
+        // success
+      }
+    } catch (err) {
+      console.error("Failed to save data source", err);
+      alert('Error saving data source');
+    } finally {
+      setIsSavingDataSource(false);
+    }
+  };
+
+
 
 
   return (
@@ -292,6 +321,42 @@ export function SettingsTab() {
 
       {/* API Providers */}
       <div className="space-y-8">
+        <div>
+          <h3 className="text-primary font-semibold mb-4 px-1">Data Source & Engine</h3>
+          <div className="space-y-2">
+            <label className="flex items-center gap-4 bg-[#1e1e22]/40 backdrop-blur-md p-4 rounded-xl border border-outline-variant cursor-pointer group hover:bg-surface-variant/30 transition-colors">
+              <input
+                type="radio"
+                name="data_source"
+                value="binance"
+                checked={dataSource === 'binance'}
+                onChange={(e) => handleSaveDataSource(e.target.value)}
+                className="w-5 h-5 text-primary bg-transparent border-outline-variant focus:ring-0 focus:ring-offset-0"
+              />
+              <div className="flex-1">
+                <p className="font-medium text-on-surface">Binance (Vercel Proxy)</p>
+                <p className="text-sm text-on-surface-variant">Scans 150 tokens. Uses Vercel bandwidth.</p>
+              </div>
+              {isSavingDataSource && dataSource === 'binance' && <span className="material-symbols-outlined animate-spin text-primary">sync</span>}
+            </label>
+            <label className="flex items-center gap-4 bg-[#1e1e22]/40 backdrop-blur-md p-4 rounded-xl border border-outline-variant cursor-pointer group hover:bg-surface-variant/30 transition-colors">
+              <input
+                type="radio"
+                name="data_source"
+                value="bybit"
+                checked={dataSource === 'bybit'}
+                onChange={(e) => handleSaveDataSource(e.target.value)}
+                className="w-5 h-5 text-primary bg-transparent border-outline-variant focus:ring-0 focus:ring-offset-0"
+              />
+              <div className="flex-1">
+                <p className="font-medium text-on-surface">Bybit (Pure Cloudflare)</p>
+                <p className="text-sm text-on-surface-variant">Scans 100 tokens. Uses 0 Vercel bandwidth (chunks 35 tokens/min).</p>
+              </div>
+              {isSavingDataSource && dataSource === 'bybit' && <span className="material-symbols-outlined animate-spin text-primary">sync</span>}
+            </label>
+          </div>
+        </div>
+
         <div>
           <h3 className="text-primary font-semibold mb-4 px-1">API Provider</h3>
           <div className="space-y-2">
