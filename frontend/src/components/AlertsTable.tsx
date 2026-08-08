@@ -338,8 +338,14 @@ export function AlertsTable({ data, loading, onRowClick, onRefresh }: AlertsTabl
 
       {/* Modal for Recent Scans */}
       {showScanLogs && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-surface-container-high rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-outline-variant/30 animate-in zoom-in-95 duration-200">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setShowScanLogs(false)}
+        >
+          <div 
+            className="bg-surface-container-high rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-outline-variant/30 animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-4 border-b border-outline-variant/30 flex justify-between items-center bg-surface">
               <h3 className="font-semibold text-lg flex items-center gap-2">
                 <span className="material-symbols-outlined text-tertiary">monitor_heart</span>
