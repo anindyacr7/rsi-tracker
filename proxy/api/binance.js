@@ -16,7 +16,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { path, symbols, ...query } = req.query;
+    const { path, symbols, filterSymbols, ...query } = req.query;
     
     // CUSTOM BATCH ENDPOINT to bypass CF 50 subrequest limit
     if (path === '/batch-klines' && symbols) {
@@ -103,7 +103,14 @@ export default async function handler(req, res) {
       },
     });
 
-    const data = await fetchRes.json();
+    let data = await fetchRes.json();
+    
+    // Filter logic to save Cloudflare Worker bandwidth
+    if (filterSymbols && Array.isArray(data)) {
+      const allowed = new Set(filterSymbols.split(','));
+      data = data.filter(d => allowed.has(d.symbol));
+    }
+
     return res.status(fetchRes.status).json(data);
   } catch (error) {
     return res.status(500).json({ error: error.message });

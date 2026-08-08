@@ -28,64 +28,32 @@ export async function fetchValidUSDTPairs(proxyUrl?: string, dataSource: string 
   // 1. Try Binance Proxy if provided (only if binance data source)
   if (dataSource === 'binance' && proxyUrl) {
     try {
-      if (targetSymbols && targetSymbols.length > 0) {
-        // Chunk target symbols into batches of 90 to avoid Binance 100 symbol limit
-        const chunkSize = 90;
-        let allChunkTickers: Ticker24h[] = [];
-        for (let i = 0; i < targetSymbols.length; i += chunkSize) {
-          const chunk = targetSymbols.slice(i, i + chunkSize);
-          const urlPath = `/api/v3/ticker/24hr?symbols=${JSON.stringify(chunk)}`;
-          const res = await fetch(`${proxyUrl}/api/binance?path=${encodeURIComponent(urlPath)}`, fetchOptions);
-          if (res.ok) {
-            const chunkData = await res.json() as Ticker24h[];
-            allChunkTickers = allChunkTickers.concat(chunkData);
-          } else {
-            throw new Error(`Proxy API Status: ${res.status}`);
-          }
-        }
-        tickers = allChunkTickers;
+      const urlPath = `/api/v3/ticker/24hr`;
+      const queryParams = targetSymbols && targetSymbols.length > 0 
+        ? `?path=${encodeURIComponent(urlPath)}&filterSymbols=${targetSymbols.join(',')}`
+        : `?path=${encodeURIComponent(urlPath)}`;
+        
+      const res = await fetch(`${proxyUrl}/api/binance${queryParams}`, fetchOptions);
+      if (res.ok) {
+        tickers = await res.json() as Ticker24h[];
         provider = 'binance-api';
       } else {
-        const res = await fetch(`${proxyUrl}/api/binance?path=${encodeURIComponent('/api/v3/ticker/24hr')}`, fetchOptions);
-        if (res.ok) {
-          tickers = await res.json() as Ticker24h[];
-          provider = 'binance-api';
-        } else {
-          errors.push(`Proxy API Status: ${res.status}`);
-        }
+        errors.push(`Proxy API Status: ${res.status}`);
       }
     } catch (e: any) {
       errors.push(`Proxy API Error: ${e.message}`);
     }
   }
 
-  // 2. Try Binance Data API
+  // 2. Try Binance Data API (Downloads all symbols if filter fails)
   if (tickers.length === 0 && dataSource === 'binance') {
     try {
-      if (targetSymbols && targetSymbols.length > 0) {
-        const chunkSize = 90;
-        let allChunkTickers: Ticker24h[] = [];
-        for (let i = 0; i < targetSymbols.length; i += chunkSize) {
-          const chunk = targetSymbols.slice(i, i + chunkSize);
-          const url = `https://data-api.binance.vision/api/v3/ticker/24hr?symbols=${JSON.stringify(chunk)}`;
-          const res = await fetch(url, fetchOptions);
-          if (res.ok) {
-            const chunkData = await res.json() as Ticker24h[];
-            allChunkTickers = allChunkTickers.concat(chunkData);
-          } else {
-            throw new Error(`Data API Status: ${res.status}`);
-          }
-        }
-        tickers = allChunkTickers;
+      const res = await fetch('https://data-api.binance.vision/api/v3/ticker/24hr', fetchOptions);
+      if (res.ok) {
+        tickers = await res.json() as Ticker24h[];
         provider = 'binance-data';
       } else {
-        const res = await fetch('https://data-api.binance.vision/api/v3/ticker/24hr', fetchOptions);
-        if (res.ok) {
-          tickers = await res.json() as Ticker24h[];
-          provider = 'binance-data';
-        } else {
-          errors.push(`Data API Status: ${res.status}`);
-        }
+        errors.push(`Data API Status: ${res.status}`);
       }
     } catch (e: any) {
       errors.push(`Data API Error: ${e.message}`);
@@ -104,32 +72,13 @@ export async function fetchValidUSDTPairs(proxyUrl?: string, dataSource: string 
     
     for (const base of bases) {
       try {
-        if (targetSymbols && targetSymbols.length > 0) {
-          const chunkSize = 90;
-          let allChunkTickers: Ticker24h[] = [];
-          for (let i = 0; i < targetSymbols.length; i += chunkSize) {
-            const chunk = targetSymbols.slice(i, i + chunkSize);
-            const url = `${base}/api/v3/ticker/24hr?symbols=${JSON.stringify(chunk)}`;
-            const res = await fetch(url, fetchOptions);
-            if (res.ok) {
-              const chunkData = await res.json() as Ticker24h[];
-              allChunkTickers = allChunkTickers.concat(chunkData);
-            } else {
-              throw new Error(`Binance API ${base} Status: ${res.status}`);
-            }
-          }
-          tickers = allChunkTickers;
+        const res = await fetch(`${base}/api/v3/ticker/24hr`, fetchOptions);
+        if (res.ok) {
+          tickers = await res.json() as Ticker24h[];
           provider = 'binance-api';
           break;
         } else {
-          const res = await fetch(`${base}/api/v3/ticker/24hr`, fetchOptions);
-          if (res.ok) {
-            tickers = await res.json() as Ticker24h[];
-            provider = 'binance-api';
-            break;
-          } else {
-            errors.push(`Binance API ${base} Status: ${res.status}`);
-          }
+          errors.push(`Binance API ${base} Status: ${res.status}`);
         }
       } catch (e: any) {
         errors.push(`Binance API ${base} Error: ${e.message}`);
@@ -173,12 +122,40 @@ export async function fetchValidUSDTPairs(proxyUrl?: string, dataSource: string 
           }));
           provider = 'bybit';
         }
+      } else {
+        errors.push(`Bybit API Status: ${res.status}`);
       }
-    } catch (e) {}
+    } catch (e: any) {
+      errors.push(`Bybit API Error: ${e.message}`);
+    }
+  }
+
+  // 5. Try KuCoin
+  if (tickers.length === 0) {
+    try {
+      const res = await fetch('https://api.kucoin.com/api/v1/market/allTickers');
+      if (res.ok) {
+        const json: any = await res.json();
+        if (json.code === "200000" && json.data && json.data.ticker) {
+          tickers = json.data.ticker.map((t: any) => ({
+            symbol: t.symbol.replace('-', ''),
+            lastPrice: t.last,
+            priceChangePercent: (parseFloat(t.changeRate) * 100).toString(),
+            quoteVolume: t.volValue
+          }));
+          provider = 'kucoin';
+        }
+      } else {
+        errors.push(`Kucoin API Status: ${res.status}`);
+      }
+    } catch (e: any) {
+      errors.push(`Kucoin API Error: ${e.message}`);
+    }
   }
 
   if (tickers.length === 0) {
-    throw new Error('All Ticker APIs (Binance, Bybit, Kucoin) are failing or blocked.');
+    console.error('Ticker Fetch Errors:', JSON.stringify(errors));
+    throw new Error('All Ticker APIs (Binance, Bybit, Kucoin) are failing or blocked. Check console for details.');
   }
 
   // Filter USDT pairs, exclude leveraged/down tokens and stablecoins
