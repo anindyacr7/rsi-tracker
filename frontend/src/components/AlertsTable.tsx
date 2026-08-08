@@ -207,8 +207,8 @@ export function AlertsTable({ data, loading, activeMode, onModeChange, onRowClic
                 </td>
                 
                 <td className="py-2 px-2 text-center">
-                  <span className={clsx("inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold", getRsiClass(activeMode === 'overshoot' ? item.max_rsi_value! : item.min_rsi_value!))}>
-                    {(activeMode === 'overshoot' ? item.max_rsi_value! : item.min_rsi_value!).toFixed(1)}
+                  <span className={clsx("inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold", getRsiClass(activeMode === 'overshoot' ? (item.max_rsi_value || 0) : (item.min_rsi_value || 0)))}>
+                    {(activeMode === 'overshoot' ? (item.max_rsi_value || 0) : (item.min_rsi_value || 0)).toFixed(1)}
                   </span>
                 </td>
                 
@@ -286,13 +286,13 @@ export function AlertsTable({ data, loading, activeMode, onModeChange, onRowClic
 
       {/* Subtabs for Overshoot/Undershoot */}
       <div className="flex justify-center mt-2 max-w-3xl mx-auto w-full px-2">
-        <div className="flex bg-surface-container-highest rounded-xl p-1 shadow-inner w-full max-w-sm border border-outline-variant/30">
+        <div className="flex bg-surface-container-highest rounded-xl p-1 shadow-inner w-full max-w-sm border border-outline-variant/30 gap-1">
           <button
             onClick={() => onModeChange('overshoot')}
             className={clsx(
-              "flex-1 py-1.5 px-4 text-sm font-medium rounded-lg transition-all duration-200",
+              "flex-1 py-1.5 px-4 text-sm font-medium rounded-lg transition-all duration-200 flex items-center justify-center",
               activeMode === 'overshoot'
-                ? "bg-primary text-on-primary shadow-sm"
+                ? "bg-error text-on-error shadow-sm"
                 : "text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50"
             )}
           >
@@ -301,9 +301,9 @@ export function AlertsTable({ data, loading, activeMode, onModeChange, onRowClic
           <button
             onClick={() => onModeChange('undershoot')}
             className={clsx(
-              "flex-1 py-1.5 px-4 text-sm font-medium rounded-lg transition-all duration-200",
+              "flex-1 py-1.5 px-4 text-sm font-medium rounded-lg transition-all duration-200 flex items-center justify-center",
               activeMode === 'undershoot'
-                ? "bg-primary text-on-primary shadow-sm"
+                ? "bg-secondary text-on-secondary shadow-sm"
                 : "text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50"
             )}
           >

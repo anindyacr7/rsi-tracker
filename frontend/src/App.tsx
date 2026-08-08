@@ -17,10 +17,10 @@ export default function App() {
   const [secondsElapsed, setSecondsElapsed] = useState(0);
   const [mcapSource, setMcapSource] = useState<'cmc' | 'coinlore' | null>(null);
 
-  // Load initial state from URL or localStorage
   const getInitialState = () => {
     const params = new URLSearchParams(window.location.search);
     const tab = (params.get('tab') || localStorage.getItem('activeTab') || 'rsi') as 'rsi' | 'movers' | 'alerts' | 'settings';
+    const mode = (params.get('mode') || 'overshoot') as 'overshoot' | 'undershoot';
     
     let initialRsiSort = { field: null, dir: 'desc' as SortDirection };
     try { initialRsiSort = JSON.parse(localStorage.getItem('rsiSort') || '') || initialRsiSort; } catch {}
@@ -28,13 +28,13 @@ export default function App() {
     let initialMoversSort = { field: 'percentMove24h' as SortField, dir: 'desc' as SortDirection };
     try { initialMoversSort = JSON.parse(localStorage.getItem('moversSort') || '') || initialMoversSort; } catch {}
 
-    return { tab, initialRsiSort, initialMoversSort };
+    return { tab, mode, initialRsiSort, initialMoversSort };
   };
 
   const initialState = useMemo(getInitialState, []);
 
   const [activeTab, setActiveTab] = useState<'rsi' | 'movers' | 'alerts' | 'settings'>(initialState.tab);
-  const [alertsTabMode, setAlertsTabMode] = useState<'overshoot' | 'undershoot'>('overshoot');
+  const [alertsTabMode, setAlertsTabMode] = useState<'overshoot' | 'undershoot'>(initialState.mode);
   const [alertsData, setAlertsData] = useState<Alert[]>([]);
   const [alertsLoading, setAlertsLoading] = useState(false);
   const [selectedToken, setSelectedToken] = useState<ScanResult | null>(null);
@@ -49,25 +49,45 @@ export default function App() {
     
     const url = new URL(window.location.href);
     const currentTab = url.searchParams.get('tab');
+    const currentMode = url.searchParams.get('mode');
+    
+    let urlChanged = false;
     
     if (currentTab !== activeTab) {
       url.searchParams.set('tab', activeTab);
-      // Only push state if we are actually changing tabs from what's in the URL
+      urlChanged = true;
+    }
+    
+    if (activeTab === 'alerts') {
+      if (currentMode !== alertsTabMode) {
+        url.searchParams.set('mode', alertsTabMode);
+        urlChanged = true;
+      }
+    } else if (currentMode !== null) {
+      url.searchParams.delete('mode');
+      urlChanged = true;
+    }
+
+    if (urlChanged) {
       if (currentTab !== null) {
-        window.history.pushState({ tab: activeTab }, '', url);
+        window.history.pushState({ tab: activeTab, mode: alertsTabMode }, '', url);
       } else {
-        window.history.replaceState({ tab: activeTab }, '', url);
+        window.history.replaceState({ tab: activeTab, mode: alertsTabMode }, '', url);
       }
     }
-  }, [activeTab]);
+  }, [activeTab, alertsTabMode]);
 
   // Handle browser back button
   useEffect(() => {
     const handlePopState = () => {
       const params = new URLSearchParams(window.location.search);
       const tab = params.get('tab') as any;
+      const mode = params.get('mode') as any;
       if (tab && ['rsi', 'movers', 'alerts', 'settings'].includes(tab)) {
         setActiveTab(tab);
+      }
+      if (mode && ['overshoot', 'undershoot'].includes(mode)) {
+        setAlertsTabMode(mode);
       }
     };
     window.addEventListener('popstate', handlePopState);
