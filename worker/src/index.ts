@@ -179,7 +179,7 @@ async function handleCron(env: Env, fullScan: boolean = false) {
     const { provider, tickers: allTickers } = await fetchValidUSDTPairs(env.BINANCE_PROXY_URL, dataSource);
     console.log(`[handleCron] Fetched ${allTickers.length} tickers from ${provider}`);
 
-    const tokenLimit = dataSource === 'binance' ? 150 : 100;
+    const tokenLimit = dataSource === 'binance' ? 200 : 100;
     // Filter tickers by CMC Top N to match frontend's desired limit
     const tickers = allTickers.filter(t => {
       const rank = mcapMap.get(t.symbol.replace('USDT', ''))?.rank;
