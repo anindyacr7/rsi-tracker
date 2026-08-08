@@ -25,3 +25,7 @@ This document serves as an iterative log of errors encountered, mistakes made, a
 - **Problem**: Modal wouldn't close reliably when clicking the backdrop.
 - **Mistake**: Used `onClick` on the backdrop wrapper. In React, if a user mouses down *inside* the modal, drags their mouse slightly, and mouses up *outside*, the `onClick` event bubbles unpredictably.
 - **Solution**: Changed the backdrop wrapper to use `onMouseDown={() => setModalOpen(false)}`. This guarantees that an explicit click down on the backdrop immediately triggers the close action without bubbling issues.
+
+## 6. Vercel Fast Origin Transfer Limits
+- **Problem**: A 1-minute cron fetching a 2.5MB ticker through Vercel exceeded the 10GB monthly Fast Origin Transfer free-tier limit, even with Vercel's automatic gzip compression (~272KB over the wire).
+- **Lesson**: Vercel meters outbound response payloads heavily. If you only need a fraction of the fields from a massive upstream API, explicitly `map()` and strip out unused fields *inside* the Vercel proxy before returning the response. Stripping 17 unused fields from Binance's 24h ticker reduced the gzipped payload from 272KB down to 40KB, perfectly resolving bandwidth limits.
