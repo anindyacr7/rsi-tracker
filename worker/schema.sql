@@ -24,6 +24,32 @@ CREATE TABLE IF NOT EXISTS rsi_alerts_backup (
   is_deleted INTEGER DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS rsi_alerts_under (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  symbol TEXT NOT NULL,
+  first_hit_time INTEGER NOT NULL,
+  first_rsi_value REAL NOT NULL,
+  min_rsi_value REAL NOT NULL,
+  percent_move_24h REAL NOT NULL,
+  mcap_rank INTEGER,
+  last_notified_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  is_deleted INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS rsi_alerts_under_backup (
+  id INTEGER PRIMARY KEY,
+  symbol TEXT NOT NULL,
+  first_hit_time INTEGER NOT NULL,
+  first_rsi_value REAL NOT NULL,
+  min_rsi_value REAL NOT NULL,
+  percent_move_24h REAL NOT NULL,
+  mcap_rank INTEGER,
+  last_notified_at INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  is_deleted INTEGER DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS push_subscriptions (
   endpoint TEXT PRIMARY KEY,
   p256dh TEXT NOT NULL,

@@ -45,9 +45,12 @@ graph TD
     subgraph Database [Cloudflare D1 SQLite]
         RsiAlerts[(rsi_alerts)]
         RsiAlertsBackup[(rsi_alerts_backup)]
+        RsiAlertsUnder[(rsi_alerts_under)]
+        RsiAlertsUnderBackup[(rsi_alerts_under_backup)]
         PushSubs[(push_subscriptions)]
         McapCache[(mcap_cache)]
         GlobalSettings[(global_settings)]
+        ScanLogs[(scan_logs)]
     end
 
     %% Interactions
@@ -56,12 +59,19 @@ graph TD
     DataTbl --> Router
     
     FetchAlerts --> RsiAlerts
+    FetchAlerts --> RsiAlertsUnder
     DeleteAlerts --> RsiAlerts
     DeleteAlerts --> RsiAlertsBackup
+    DeleteAlerts --> RsiAlertsUnder
+    DeleteAlerts --> RsiAlertsUnderBackup
     RestoreAlerts --> RsiAlerts
     RestoreAlerts --> RsiAlertsBackup
+    RestoreAlerts --> RsiAlertsUnder
+    RestoreAlerts --> RsiAlertsUnderBackup
     
     Cron --> RsiAlerts
+    Cron --> RsiAlertsUnder
+    Cron --> ScanLogs
     Push --> PushSubs
     MarketCap --> McapCache
 ```

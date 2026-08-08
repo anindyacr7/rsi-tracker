@@ -294,29 +294,41 @@ export async function fetchKlinesBatch(
   const results: Record<string, number[]> = {};
   
   if (proxyUrl && (provider === 'binance-api' || provider === 'binance-data')) {
-    try {
-      const symStr = symbols.join(',');
-      const res = await fetch(`${proxyUrl}/api/binance?path=/batch-klines&symbols=${symStr}&interval=${interval}&limit=${limit}`, fetchOptions);
-      if (res.ok) {
-        const json: Record<string, any[][]> = await res.json() as Record<string, any[][]>;
-        for (const sym of Object.keys(json)) {
-          if (json[sym] && json[sym].length > 0) {
-            results[sym] = json[sym].map((k) => {
-              if (Array.isArray(k)) {
-                return parseFloat(k[4]);
-              }
-              return parseFloat(k as unknown as string);
-            });
+    let attempts = 0;
+    while (attempts < 2) {
+      attempts++;
+      try {
+        const symStr = symbols.join(',');
+        const res = await fetch(`${proxyUrl}/api/binance?path=/batch-klines&symbols=${symStr}&interval=${interval}&limit=${limit}`, fetchOptions);
+        if (res.ok) {
+          const json: Record<string, any[][]> = await res.json() as Record<string, any[][]>;
+          for (const sym of Object.keys(json)) {
+            if (json[sym] && json[sym].length > 0) {
+              results[sym] = json[sym].map((k) => {
+                if (Array.isArray(k)) {
+                  return parseFloat(k[4]);
+                }
+                return parseFloat(k as unknown as string);
+              });
+            }
           }
+          return results;
+        } else {
+          console.warn(`[Batch Proxy] attempt ${attempts} returned ${res.status}`);
         }
-        return results;
+      } catch (e) {
+        console.warn(`[Batch Proxy] attempt ${attempts} failed:`, e);
       }
-    } catch (e) {
-      console.warn(`[Batch Proxy] failed, falling back to individual fetching...`, e);
+      if (attempts < 2) await new Promise(r => setTimeout(r, 1000));
     }
+    
+    // If proxyUrl is provided, do NOT fall back to individual requests because it will 
+    // blow up the CF 50 subrequests limit (20 subrequests per chunk).
+    console.warn(`[Batch Proxy] All attempts failed for chunk. Skipping to prevent subrequest limit error.`);
+    return results;
   }
 
-  // Fallback to individual fetching with throttling (5 concurrent)
+  // Fallback to individual fetching with throttling (5 concurrent) (Only used if proxyUrl is not provided)
   for (let i = 0; i < symbols.length; i += 5) {
     const chunk = symbols.slice(i, i + 5);
     const promises = chunk.map(async (symbol) => {

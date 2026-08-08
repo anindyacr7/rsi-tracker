@@ -18,7 +18,8 @@ export interface Alert {
   symbol: string;
   first_hit_time: number;
   first_rsi_value: number;
-  max_rsi_value: number;
+  max_rsi_value?: number; // Present for overshoot alerts
+  min_rsi_value?: number; // Present for undershoot alerts
   percent_move_24h: number;
   mcap_rank: number | null;
   last_notified_at: number;

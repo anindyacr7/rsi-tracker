@@ -31,31 +31,14 @@ export function SettingsTab() {
   const [rsiThreshold, setRsiThreshold] = useState(75);
   const [isSavingThreshold, setIsSavingThreshold] = useState(false);
   
+  const [rsiThresholdUnder, setRsiThresholdUnder] = useState(25);
+  const [isSavingThresholdUnder, setIsSavingThresholdUnder] = useState(false);
+  
   const [cronInterval, setCronInterval] = useState(1);
   const [isSavingInterval, setIsSavingInterval] = useState(false);
   
   const [dataSource, setDataSource] = useState('binance');
   const [isSavingDataSource, setIsSavingDataSource] = useState(false);
-  
-  const [pushStatus, setPushStatus] = useState<'default' | 'granted' | 'denied'>('default');
-  const [isSubscribed, setIsSubscribed] = useState(false);
-
-
-
-  useEffect(() => {
-    if ('Notification' in window) {
-      setPushStatus(Notification.permission);
-    }
-    
-    // Check if there is an active subscription
-    if ('serviceWorker' in navigator && 'PushManager' in window) {
-      navigator.serviceWorker.ready.then(registration => {
-        registration.pushManager.getSubscription().then(subscription => {
-          setIsSubscribed(subscription !== null);
-        });
-      });
-    }
-  }, []);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -67,6 +50,9 @@ export function SettingsTab() {
           const data = await res.json();
           if (data.settings && data.settings['rsi_threshold']) {
             setRsiThreshold(parseFloat(data.settings['rsi_threshold']));
+          }
+          if (data.settings && data.settings['rsi_threshold_under']) {
+            setRsiThresholdUnder(parseFloat(data.settings['rsi_threshold_under']));
           }
           if (data.settings && data.settings['cron_interval']) {
             setCronInterval(parseInt(data.settings['cron_interval'], 10));
@@ -94,76 +80,6 @@ export function SettingsTab() {
     localStorage.setItem('chartInterval', chartInterval);
   }, [chartInterval]);
 
-  const handleSubscribe = async () => {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      alert('Push messaging is not supported.');
-      return;
-    }
-
-    const permission = await Notification.requestPermission();
-    setPushStatus(permission);
-
-    if (permission === 'granted') {
-      try {
-        const registration = await navigator.serviceWorker.ready;
-        const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
-        
-        if (!vapidPublicKey) {
-          console.error('VAPID public key not found in env');
-          return;
-        }
-
-        const subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlB64ToUint8Array(vapidPublicKey)
-        });
-
-        const apiUrl = import.meta.env.VITE_API_URL || '/api/scan';
-        const subscribeUrl = apiUrl.replace('/scan', '/subscribe');
-
-        await fetch(subscribeUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(subscription)
-        });
-
-        setIsSubscribed(true);
-        alert('Subscribed to notifications successfully!');
-      } catch (err) {
-        console.error('Failed to subscribe the user: ', err);
-      }
-    }
-  };
-
-  const handleUnsubscribe = async () => {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      return;
-    }
-
-    try {
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
-      
-      if (subscription) {
-        const apiUrl = import.meta.env.VITE_API_URL || '/api/scan';
-        const unsubscribeUrl = apiUrl.replace('/scan', '/unsubscribe');
-
-        await fetch(unsubscribeUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ endpoint: subscription.endpoint })
-        });
-
-        await subscription.unsubscribe();
-        setIsSubscribed(false);
-        alert('Unsubscribed from notifications successfully.');
-      }
-    } catch (err) {
-      console.error('Failed to unsubscribe', err);
-    }
-  };
-
-
   const handleSaveThreshold = async (val: number) => {
     try {
       setIsSavingThreshold(true);
@@ -182,6 +98,27 @@ export function SettingsTab() {
       alert('Error saving threshold');
     } finally {
       setIsSavingThreshold(false);
+    }
+  };
+
+  const handleSaveThresholdUnder = async (val: number) => {
+    try {
+      setIsSavingThresholdUnder(true);
+      const apiUrl = import.meta.env.VITE_API_URL || '/api/scan';
+      const settingsUrl = apiUrl.replace('/scan', '/settings');
+      const res = await fetch(settingsUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'rsi_threshold_under', value: val })
+      });
+      if (res.ok) {
+        // success
+      }
+    } catch (err) {
+      console.error("Failed to save undershoot threshold", err);
+      alert('Error saving undershoot threshold');
+    } finally {
+      setIsSavingThresholdUnder(false);
     }
   };
 
@@ -236,31 +173,9 @@ export function SettingsTab() {
       
       {/* Notifications Card */}
       <div className="mb-6">
-        <h3 className="text-primary font-semibold mb-4 px-1">Notifications</h3>
+        <h3 className="text-primary font-semibold mb-4 px-1">Alerts Configuration</h3>
         <div className="bg-[#1e1e22]/40 backdrop-blur-md border border-white/10 rounded-xl p-4 space-y-6">
           
-          {/* Push Toggle */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-start gap-4">
-              <span className={clsx("material-symbols-outlined mt-0.5", isSubscribed ? "text-secondary" : "text-on-surface-variant")} style={isSubscribed ? { fontVariationSettings: "'FILL' 1" } : {}}>
-                notifications
-              </span>
-              <div>
-                <p className="font-medium text-on-surface">Push Notifications</p>
-                <p className="text-sm text-on-surface-variant">
-                  {isSubscribed ? 'Subscribed' : pushStatus === 'denied' ? 'Blocked' : 'Disabled'}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={isSubscribed ? handleUnsubscribe : handleSubscribe}
-              disabled={pushStatus === 'denied'}
-              className="bg-[#2d3142] text-on-surface px-6 py-2 rounded-xl text-sm font-semibold hover:bg-surface-bright transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubscribed ? 'Disable' : pushStatus === 'denied' ? 'Blocked' : 'Enable'}
-            </button>
-          </div>
-
           {/* Global RSI */}
           <div className="pt-2">
             <p className="font-medium text-on-surface mb-1">Global RSI Threshold</p>
@@ -282,6 +197,33 @@ export function SettingsTab() {
                 >
                   <span className={clsx("material-symbols-outlined", isSavingThreshold && "animate-spin")}>
                     {isSavingThreshold ? 'sync' : 'save'}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Undershoot RSI */}
+          <div className="pt-2 border-t border-white/5">
+            <p className="font-medium text-on-surface mb-1">Undershoot RSI Threshold</p>
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-sm text-on-surface-variant">Maximum RSI for undershoot alerts</p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="5"
+                  max="50"
+                  value={rsiThresholdUnder}
+                  onChange={(e) => setRsiThresholdUnder(parseInt(e.target.value) || 25)}
+                  className="w-16 h-12 bg-surface-container-lowest border border-outline-variant rounded-lg text-center font-data-tabular focus:ring-1 focus:ring-primary focus:border-primary text-on-surface"
+                />
+                <button
+                  onClick={() => handleSaveThresholdUnder(rsiThresholdUnder)}
+                  disabled={isSavingThresholdUnder}
+                  className="w-12 h-12 bg-surface-container-highest border border-outline-variant rounded-lg flex items-center justify-center text-primary-fixed hover:bg-primary/20 transition-colors disabled:opacity-50"
+                >
+                  <span className={clsx("material-symbols-outlined", isSavingThresholdUnder && "animate-spin")}>
+                    {isSavingThresholdUnder ? 'sync' : 'save'}
                   </span>
                 </button>
               </div>

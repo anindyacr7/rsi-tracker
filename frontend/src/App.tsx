@@ -34,6 +34,7 @@ export default function App() {
   const initialState = useMemo(getInitialState, []);
 
   const [activeTab, setActiveTab] = useState<'rsi' | 'movers' | 'alerts' | 'settings'>(initialState.tab);
+  const [alertsTabMode, setAlertsTabMode] = useState<'overshoot' | 'undershoot'>('overshoot');
   const [alertsData, setAlertsData] = useState<Alert[]>([]);
   const [alertsLoading, setAlertsLoading] = useState(false);
   const [selectedToken, setSelectedToken] = useState<ScanResult | null>(null);
@@ -175,7 +176,7 @@ export default function App() {
     setAlertsLoading(true);
     try {
       const scanApiUrl = import.meta.env.VITE_API_URL || '/api/scan';
-      const alertsApiUrl = scanApiUrl.replace('/scan', '/alerts');
+      const alertsApiUrl = scanApiUrl.replace('/scan', `/alerts?type=${alertsTabMode}`);
       const res = await fetch(alertsApiUrl);
       if (res.ok) {
         const json = await res.json();
@@ -186,13 +187,13 @@ export default function App() {
     } finally {
       setAlertsLoading(false);
     }
-  }, []);
+  }, [alertsTabMode]);
 
   useEffect(() => {
     if (activeTab === 'alerts') {
       fetchAlerts();
     }
-  }, [activeTab, fetchAlerts]);
+  }, [activeTab, alertsTabMode, fetchAlerts]);
 
   // Sorting and Filtering logic
   const processData = (tabData: ScanResult[], tab: 'rsi' | 'movers' | 'alerts') => {
@@ -279,7 +280,13 @@ export default function App() {
           )}
 
           {activeTab === 'alerts' ? (
-            <AlertsTable data={alertsData} loading={alertsLoading} onRefresh={fetchAlerts} onRowClick={(symbol) => {
+            <AlertsTable 
+              data={alertsData} 
+              loading={alertsLoading} 
+              activeMode={alertsTabMode}
+              onModeChange={(mode) => setAlertsTabMode(mode)}
+              onRefresh={fetchAlerts} 
+              onRowClick={(symbol) => {
               const result = data.find(d => d.symbol === symbol) || { 
                 symbol, 
                 price: 0, 

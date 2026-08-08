@@ -6,11 +6,13 @@ import { getRsiClass } from '../utils/formatters';
 interface AlertsTableProps {
   data: Alert[];
   loading: boolean;
+  activeMode: 'overshoot' | 'undershoot';
+  onModeChange: (mode: 'overshoot' | 'undershoot') => void;
   onRowClick?: (symbol: string) => void;
   onRefresh?: () => void;
 }
 
-export function AlertsTable({ data, loading, onRowClick, onRefresh }: AlertsTableProps) {
+export function AlertsTable({ data, loading, activeMode, onModeChange, onRowClick, onRefresh }: AlertsTableProps) {
   const [expandedDates, setExpandedDates] = useState<Record<string, boolean>>({});
   const [forceRunLoading, setForceRunLoading] = useState(false);
   const [testNotificationLoading, setTestNotificationLoading] = useState(false);
@@ -48,7 +50,7 @@ export function AlertsTable({ data, loading, onRowClick, onRefresh }: AlertsTabl
     if (!window.confirm(`Permanently delete ${symbols.length} alert(s)?`)) return;
     try {
       const scanApiUrl = import.meta.env.VITE_API_URL || '/api/scan';
-      const apiUrl = scanApiUrl.replace('/scan', '/alerts');
+      const apiUrl = scanApiUrl.replace('/scan', `/alerts?type=${activeMode}`);
       const res = await fetch(apiUrl, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
@@ -137,7 +139,7 @@ export function AlertsTable({ data, loading, onRowClick, onRefresh }: AlertsTabl
     try {
       setRestoreAlertsLoading(true);
       const apiUrl = import.meta.env.VITE_API_URL || '/api/scan';
-      const restoreUrl = apiUrl.replace('/scan', '/alerts/restore');
+      const restoreUrl = apiUrl.replace('/scan', `/alerts/restore?type=${activeMode}`);
       
       const res = await fetch(restoreUrl, { method: 'POST' });
       if (!res.ok) throw new Error('Failed to restore alerts data');
@@ -178,7 +180,7 @@ export function AlertsTable({ data, loading, onRowClick, onRefresh }: AlertsTabl
           <tr>
             <th className="py-2 px-2 font-semibold w-12 text-center">#</th>
             <th className="py-2 px-2 font-semibold">Asset</th>
-            <th className="py-2 px-2 text-center">Max RSI</th>
+            <th className="py-2 px-2 text-center">{activeMode === 'overshoot' ? 'Max RSI' : 'Min RSI'}</th>
             <th className="py-2 px-2 text-right">24h Move</th>
             <th className="py-2 px-2 text-center text-right">Rank</th>
             <th className="py-2 px-2 text-center w-10"></th>
@@ -205,8 +207,8 @@ export function AlertsTable({ data, loading, onRowClick, onRefresh }: AlertsTabl
                 </td>
                 
                 <td className="py-2 px-2 text-center">
-                  <span className={clsx("inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold", getRsiClass(item.max_rsi_value))}>
-                    {item.max_rsi_value.toFixed(1)}
+                  <span className={clsx("inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-semibold", getRsiClass(activeMode === 'overshoot' ? item.max_rsi_value! : item.min_rsi_value!))}>
+                    {(activeMode === 'overshoot' ? item.max_rsi_value! : item.min_rsi_value!).toFixed(1)}
                   </span>
                 </td>
                 
@@ -280,6 +282,34 @@ export function AlertsTable({ data, loading, onRowClick, onRefresh }: AlertsTabl
           <span className="material-symbols-outlined text-[16px] sm:text-[18px] text-tertiary">monitor_heart</span>
           <span>Scanner<span className="max-[450px]:hidden"> Health</span></span>
         </button>
+      </div>
+
+      {/* Subtabs for Overshoot/Undershoot */}
+      <div className="flex justify-center mt-2 max-w-3xl mx-auto w-full px-2">
+        <div className="flex bg-surface-container-highest rounded-xl p-1 shadow-inner w-full max-w-sm border border-outline-variant/30">
+          <button
+            onClick={() => onModeChange('overshoot')}
+            className={clsx(
+              "flex-1 py-1.5 px-4 text-sm font-medium rounded-lg transition-all duration-200",
+              activeMode === 'overshoot'
+                ? "bg-primary text-on-primary shadow-sm"
+                : "text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50"
+            )}
+          >
+            Overshoot (&gt;75)
+          </button>
+          <button
+            onClick={() => onModeChange('undershoot')}
+            className={clsx(
+              "flex-1 py-1.5 px-4 text-sm font-medium rounded-lg transition-all duration-200",
+              activeMode === 'undershoot'
+                ? "bg-primary text-on-primary shadow-sm"
+                : "text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50"
+            )}
+          >
+            Undershoot (&lt;25)
+          </button>
+        </div>
       </div>
 
       {/* Active Alerts Section */}

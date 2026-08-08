@@ -48,12 +48,14 @@ export default {
     }
 
     if (url.pathname === '/api/alerts') {
-      if (request.method === 'GET') return handleAlerts(env);
-      if (request.method === 'DELETE') return handleClearAlerts(request, env);
+      const type = url.searchParams.get('type') === 'undershoot' ? 'undershoot' : 'overshoot';
+      if (request.method === 'GET') return handleAlerts(env, type);
+      if (request.method === 'DELETE') return handleClearAlerts(request, env, type);
     }
 
     if (url.pathname === '/api/alerts/restore' && request.method === 'POST') {
-      return handleRestoreAlerts(env);
+      const type = url.searchParams.get('type') === 'undershoot' ? 'undershoot' : 'overshoot';
+      return handleRestoreAlerts(env, type);
     }
 
     if (url.pathname === '/api/settings') {
@@ -183,10 +185,13 @@ async function handleCron(env: Env, fullScan: boolean = false) {
 
     const thresholdRecord = await env.DB.prepare("SELECT value FROM global_settings WHERE key = 'rsi_threshold'").first();
     const rsiThreshold = thresholdRecord ? parseFloat(thresholdRecord.value as string) : 75;
+    
+    const thresholdUnderRecord = await env.DB.prepare("SELECT value FROM global_settings WHERE key = 'rsi_threshold_under'").first();
+    const rsiThresholdUnder = thresholdUnderRecord ? parseFloat(thresholdUnderRecord.value as string) : 25;
 
     const dataSourceRecord = await env.DB.prepare("SELECT value FROM global_settings WHERE key = 'data_source'").first();
     const dataSource = dataSourceRecord ? dataSourceRecord.value as string : 'binance';
-    console.log(`[handleCron] Config loaded. Threshold=${rsiThreshold}, Source=${dataSource}`);
+    console.log(`[handleCron] Config loaded. Threshold=${rsiThreshold}, ThresholdUnder=${rsiThresholdUnder}, Source=${dataSource}`);
 
     // Use keyIndex 0 to match frontend or try both if one fails (undefined tries 0 then 1)
     const { mcapMap } = await fetchMarketCaps(undefined, env.DB);
@@ -229,6 +234,8 @@ async function handleCron(env: Env, fullScan: boolean = false) {
     
     let maxRsiSymbol = '';
     let maxRsiValue = -1;
+    let minRsiSymbol = '';
+    let minRsiValue = 101;
     
     for (let i = 0; i < targetTickers.length; i += CHUNK_SIZE) {
       const chunk = targetTickers.slice(i, i + CHUNK_SIZE);
@@ -255,13 +262,21 @@ async function handleCron(env: Env, fullScan: boolean = false) {
               maxRsiValue = rsi;
               maxRsiSymbol = symbol;
             }
+            if (rsi !== null && rsi < minRsiValue) {
+              minRsiValue = rsi;
+              minRsiSymbol = symbol;
+            }
             if (symbol === 'WIFUSDT' || symbol === 'PENGUUSDT' || symbol === 'GRAMUSDT') {
               console.log(`[DEBUG] ${symbol} RSI: ${rsi}`);
             }
+            const rank = mcapMap.get(symbol.replace('USDT', ''))?.rank;
             if (rsi !== null && rsi >= rsiThreshold) {
-              const rank = mcapMap.get(symbol.replace('USDT', ''))?.rank;
               console.log(`[handleCron] High RSI detected: ${symbol} = ${rsi} (Rank #${rank}). Processing alert...`);
               await processAlert(env, ticker, rsi, rank);
+            }
+            if (rsi !== null && rsi <= rsiThresholdUnder) {
+              console.log(`[handleCron] Low RSI detected: ${symbol} = ${rsi} (Rank #${rank}). Processing alert...`);
+              await processAlertUnder(env, ticker, rsi, rank);
             }
           } else {
              if (symbol === 'PENGUUSDT') console.log(`[DEBUG] PENGUUSDT missing closes or < 14. Closes length: ${closes?.length}`);
@@ -344,6 +359,66 @@ async function processAlert(env: Env, ticker: any, rsi: number, rank?: number) {
   }
 }
 
+async function processAlertUnder(env: Env, ticker: any, rsi: number, rank?: number) {
+  const symbol = ticker.symbol;
+  const now = Date.now();
+
+  // Check existing record
+  const existing = await env.DB.prepare('SELECT * FROM rsi_alerts_under WHERE symbol = ? ORDER BY created_at DESC LIMIT 1').bind(symbol).first();
+
+  const percentMove24h = parseFloat(ticker.priceChangePercent);
+
+  let shouldUpdateMin = false;
+  let shouldNotify = false;
+
+  if (!existing || now - (existing.created_at as number) > 48 * 60 * 60 * 1000) {
+    // New or expired, insert new
+    await env.DB.prepare(`
+      INSERT OR REPLACE INTO rsi_alerts_under (symbol, first_hit_time, first_rsi_value, min_rsi_value, percent_move_24h, mcap_rank, last_notified_at, created_at, is_deleted)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
+    `).bind(symbol, now, rsi, rsi, percentMove24h, rank || null, now, now).run();
+
+    await sendTelegramMessage(env, `📉 UNDERSHOOT: ${symbol}: ${rsi}\n${percentMove24h}% - #${rank || 'N/A'}`);
+  } else {
+    // Exists within 24h
+    let minRsi = (existing.min_rsi_value as number);
+
+    if (rsi < minRsi) {
+      minRsi = rsi;
+      shouldUpdateMin = true;
+    }
+
+    const lastNotified = existing.last_notified_at as number;
+
+    if (now - lastNotified > 60 * 60 * 1000) {
+      // Cooldown of 1 hour passed
+      shouldNotify = true;
+    }
+
+    if (shouldUpdateMin || shouldNotify) {
+      await env.DB.prepare(`
+        UPDATE rsi_alerts_under 
+        SET min_rsi_value = ?, percent_move_24h = ?, mcap_rank = ?${shouldNotify ? ', last_notified_at = ?' : ''}
+        WHERE id = ?
+      `).bind(
+        minRsi,
+        percentMove24h,
+        rank || null,
+        ...(shouldNotify ? [now, existing.id] : [existing.id])
+      ).run();
+
+      if (shouldNotify) {
+        await sendTelegramMessage(env, `📉 UNDERSHOOT: ${symbol}: ${rsi}\n${percentMove24h}% - #${rank || 'N/A'}`);
+      }
+    }
+  }
+
+  if (!existing || now - (existing.created_at as number) > 48 * 60 * 60 * 1000 || shouldUpdateMin || shouldNotify) {
+    const text = `📉 UNDERSHOOT: ${symbol}: ${rsi}\n${percentMove24h}% - #${rank || 'N/A'}`;
+    await sendWebPush(env, text);
+  }
+}
+
 async function sendWebPush(env: Env, text: string) {
   if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) return;
 
@@ -420,9 +495,10 @@ async function handleScan(request: Request): Promise<Response> {
   }
 }
 
-async function handleAlerts(env: Env): Promise<Response> {
+async function handleAlerts(env: Env, type: 'overshoot' | 'undershoot'): Promise<Response> {
   try {
-    const result = await env.DB.prepare('SELECT * FROM rsi_alerts ORDER BY created_at DESC').all();
+    const table = type === 'undershoot' ? 'rsi_alerts_under' : 'rsi_alerts';
+    const result = await env.DB.prepare(`SELECT * FROM ${table} ORDER BY created_at DESC`).all();
     return jsonResponse({ data: result.results });
   } catch (err: any) {
     console.error('Alerts error:', err);
@@ -430,21 +506,25 @@ async function handleAlerts(env: Env): Promise<Response> {
   }
 }
 
-async function handleClearAlerts(request: Request, env: Env): Promise<Response> {
+async function handleClearAlerts(request: Request, env: Env, type: 'overshoot' | 'undershoot'): Promise<Response> {
   try {
     let body: any = {};
     if (request.headers.get('content-type')?.includes('application/json')) {
       body = await request.json().catch(() => ({}));
     }
 
-    const columns = 'symbol, first_hit_time, first_rsi_value, max_rsi_value, percent_move_24h, mcap_rank, last_notified_at, created_at, is_deleted';
+    const table = type === 'undershoot' ? 'rsi_alerts_under' : 'rsi_alerts';
+    const backupTable = type === 'undershoot' ? 'rsi_alerts_under_backup' : 'rsi_alerts_backup';
+    const valCol = type === 'undershoot' ? 'min_rsi_value' : 'max_rsi_value';
+    const columns = `symbol, first_hit_time, first_rsi_value, ${valCol}, percent_move_24h, mcap_rank, last_notified_at, created_at, is_deleted`;
+
     if (body.symbols && Array.isArray(body.symbols) && body.symbols.length > 0) {
       const placeholders = body.symbols.map(() => '?').join(',');
-      await env.DB.prepare(`INSERT OR REPLACE INTO rsi_alerts_backup (${columns}) SELECT ${columns} FROM rsi_alerts WHERE symbol IN (${placeholders})`).bind(...body.symbols).run();
-      await env.DB.prepare(`DELETE FROM rsi_alerts WHERE symbol IN (${placeholders})`).bind(...body.symbols).run();
+      await env.DB.prepare(`INSERT OR REPLACE INTO ${backupTable} (${columns}) SELECT ${columns} FROM ${table} WHERE symbol IN (${placeholders})`).bind(...body.symbols).run();
+      await env.DB.prepare(`DELETE FROM ${table} WHERE symbol IN (${placeholders})`).bind(...body.symbols).run();
     } else if (body.clearAll === true) {
-      await env.DB.prepare(`INSERT OR REPLACE INTO rsi_alerts_backup (${columns}) SELECT ${columns} FROM rsi_alerts`).run();
-      await env.DB.prepare('DELETE FROM rsi_alerts').run();
+      await env.DB.prepare(`INSERT OR REPLACE INTO ${backupTable} (${columns}) SELECT ${columns} FROM ${table}`).run();
+      await env.DB.prepare(`DELETE FROM ${table}`).run();
     } else {
       return jsonResponse({ error: 'Invalid request: must provide symbols array or clearAll flag' }, 400);
     }
@@ -455,10 +535,13 @@ async function handleClearAlerts(request: Request, env: Env): Promise<Response> 
   }
 }
 
-async function handleRestoreAlerts(env: Env): Promise<Response> {
+async function handleRestoreAlerts(env: Env, type: 'overshoot' | 'undershoot'): Promise<Response> {
   try {
-    const columns = 'symbol, first_hit_time, first_rsi_value, max_rsi_value, percent_move_24h, mcap_rank, last_notified_at, created_at, is_deleted';
-    await env.DB.prepare(`INSERT OR IGNORE INTO rsi_alerts (${columns}) SELECT ${columns} FROM rsi_alerts_backup`).run();
+    const table = type === 'undershoot' ? 'rsi_alerts_under' : 'rsi_alerts';
+    const backupTable = type === 'undershoot' ? 'rsi_alerts_under_backup' : 'rsi_alerts_backup';
+    const valCol = type === 'undershoot' ? 'min_rsi_value' : 'max_rsi_value';
+    const columns = `symbol, first_hit_time, first_rsi_value, ${valCol}, percent_move_24h, mcap_rank, last_notified_at, created_at, is_deleted`;
+    await env.DB.prepare(`INSERT OR IGNORE INTO ${table} (${columns}) SELECT ${columns} FROM ${backupTable}`).run();
     return jsonResponse({ status: 'ok' });
   } catch (err: any) {
     console.error('Restore alerts error:', err);
