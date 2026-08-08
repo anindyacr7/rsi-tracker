@@ -103,7 +103,19 @@ export default async function handler(req, res) {
       },
     });
 
-    const data = await fetchRes.json();
+    let data = await fetchRes.json();
+    
+    // BANDWIDTH OPTIMIZATION: If this is the 24hr ticker, strip out all unused fields!
+    // The Binance payload is 2.5MB, but we only need 4 fields. This brings it down to ~40KB compressed!
+    if (path === '/api/v3/ticker/24hr' && Array.isArray(data)) {
+      data = data.map((t) => ({
+        symbol: t.symbol,
+        lastPrice: t.lastPrice,
+        priceChangePercent: t.priceChangePercent,
+        quoteVolume: t.quoteVolume
+      }));
+    }
+
     return res.status(fetchRes.status).json(data);
   } catch (error) {
     return res.status(500).json({ error: error.message });
