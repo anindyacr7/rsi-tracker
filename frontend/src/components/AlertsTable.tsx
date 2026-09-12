@@ -22,14 +22,20 @@ export function AlertsTable({ data, loading, activeMode, onModeChange, onRowClic
   const [scanLogsLoading, setScanLogsLoading] = useState(false);
 
   const { activeAlerts, archivedAlertsByDate } = useMemo(() => {
-    const now = Date.now();
-    const TWO_DAYS = 48 * 60 * 60 * 1000;
-    
     const active: Alert[] = [];
     const archived: Record<string, Alert[]> = {};
 
+    const now = Date.now();
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const nowISTDate = new Date(now + istOffset);
+
     data.forEach(item => {
-      if (now - item.created_at <= TWO_DAYS) {
+      const itemISTDate = new Date(item.created_at + istOffset);
+      const isTodayIST = nowISTDate.getUTCFullYear() === itemISTDate.getUTCFullYear() &&
+                         nowISTDate.getUTCMonth() === itemISTDate.getUTCMonth() &&
+                         nowISTDate.getUTCDate() === itemISTDate.getUTCDate();
+
+      if (isTodayIST) {
         active.push(item);
       } else {
         const dateStr = new Date(item.created_at).toLocaleDateString(undefined, {

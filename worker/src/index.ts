@@ -311,7 +311,15 @@ async function processAlert(env: Env, ticker: any, rsi: number, rank?: number) {
   let shouldUpdateMax = false;
   let shouldNotify = false;
 
-  if (!existing || now - (existing.created_at as number) > 48 * 60 * 60 * 1000) {
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const nowISTDate = new Date(now + istOffset);
+  const existingISTDate = existing ? new Date((existing.created_at as number) + istOffset) : null;
+  const isSameDayIST = existingISTDate && 
+    nowISTDate.getUTCFullYear() === existingISTDate.getUTCFullYear() &&
+    nowISTDate.getUTCMonth() === existingISTDate.getUTCMonth() &&
+    nowISTDate.getUTCDate() === existingISTDate.getUTCDate();
+
+  if (!existing || !isSameDayIST) {
     // New or expired, insert new
     await env.DB.prepare(`
       INSERT OR REPLACE INTO rsi_alerts (symbol, first_hit_time, first_rsi_value, max_rsi_value, percent_move_24h, mcap_rank, last_notified_at, created_at, is_deleted)
@@ -353,7 +361,7 @@ async function processAlert(env: Env, ticker: any, rsi: number, rank?: number) {
     }
   }
 
-  if (!existing || now - (existing.created_at as number) > 48 * 60 * 60 * 1000 || shouldUpdateMax || shouldNotify) {
+  if (!existing || !isSameDayIST || shouldUpdateMax || shouldNotify) {
     const text = `${symbol}: ${rsi}\n${percentMove24h}% - #${rank || 'N/A'}`;
     await sendWebPush(env, text);
   }
@@ -371,7 +379,15 @@ async function processAlertUnder(env: Env, ticker: any, rsi: number, rank?: numb
   let shouldUpdateMin = false;
   let shouldNotify = false;
 
-  if (!existing || now - (existing.created_at as number) > 48 * 60 * 60 * 1000) {
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const nowISTDate = new Date(now + istOffset);
+  const existingISTDate = existing ? new Date((existing.created_at as number) + istOffset) : null;
+  const isSameDayIST = existingISTDate && 
+    nowISTDate.getUTCFullYear() === existingISTDate.getUTCFullYear() &&
+    nowISTDate.getUTCMonth() === existingISTDate.getUTCMonth() &&
+    nowISTDate.getUTCDate() === existingISTDate.getUTCDate();
+
+  if (!existing || !isSameDayIST) {
     // New or expired, insert new
     await env.DB.prepare(`
       INSERT OR REPLACE INTO rsi_alerts_under (symbol, first_hit_time, first_rsi_value, min_rsi_value, percent_move_24h, mcap_rank, last_notified_at, created_at, is_deleted)
@@ -413,7 +429,7 @@ async function processAlertUnder(env: Env, ticker: any, rsi: number, rank?: numb
     }
   }
 
-  if (!existing || now - (existing.created_at as number) > 48 * 60 * 60 * 1000 || shouldUpdateMin || shouldNotify) {
+  if (!existing || !isSameDayIST || shouldUpdateMin || shouldNotify) {
     const text = `📉 UNDERSHOOT: ${symbol}: ${rsi}\n${percentMove24h}% - #${rank || 'N/A'}`;
     await sendWebPush(env, text);
   }
